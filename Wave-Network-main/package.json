@@ -1,0 +1,41 @@
+{
+  "name": "Wave Network",
+  "main": "index.js",
+  "author": "bloodwraith_.| Dino",
+  "version": "1.3.1",
+  "description": "this is wonderful ticket bot with perfect handlering and had perfect tools.",
+  "license": "BSD",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Persian-Caesar/Ticker-Boy.git"
+  },
+  "bugs": {
+    "server": "https://dsc.gg/persian-caesar",
+    "url": "https://github.com/Persian-Caesar/Ticker-Boy/issues"
+  },
+  "homepage": "https://github.com/Persian-Caesar/Ticker-Boy#readme",
+  "keywords": [
+    "advanced bot",
+    "ticket bot",
+    "advanced ticket bot",
+    "advanced ticket system",
+    "buttons ticket system",
+    "bloodwraith_.",
+    "Dino"
+  ],
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "cli-color": "^2.0.4",
+    "discord-html-transcripts": "^3.2.0",
+    "discord.js": "^14.26.0",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.1",
+    "fs": "^0.0.1-security",
+    "moment": "^2.30.1",
+    "quick.db": "^9.1.7",
+    "write-file-atomic": "^5.0.1"
+  }
+}
