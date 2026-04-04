@@ -82,19 +82,29 @@ Logger.loadedBox('Start scripts', counter);
 
 // ── Login ─────────────────────────────────────────────────────────────────────
 if (client.token) {
-  Logger.boot('Logging into Discord…');
-  client.login(client.token).catch(e => {
-    Logger.fatal('Login', 'Failed to login — check TOKEN and ensure ALL Intents are enabled', e);
-    process.exit(1);
-  });
+  // Show a masked token prefix so you can confirm the right token is loaded
+  const tokenPreview = client.token.split('.')[0] + '.***';
+  Logger.boot(`Authenticating with Discord  [token: ${tokenPreview}]  [Shard#${SHARD_ID}]`);
+
+  client.login(client.token)
+    .then(() => {
+      // Discord accepted the token — WebSocket handshake now in progress
+      Logger.ok('Login', `✅  Token accepted — waiting for Gateway READY  [Shard#${SHARD_ID}]`);
+    })
+    .catch(e => {
+      Logger.fatal('Login', `❌  Login FAILED [Shard#${SHARD_ID}] — check TOKEN and ensure ALL Privileged Intents are enabled in the Discord Developer Portal`, e);
+      process.exit(1);
+    });
 } else {
-  Logger.fatal('Config', 'TOKEN not set — add TOKEN to your Railway Variables or .env file');
+  Logger.fatal('Config', '❌  TOKEN not set — add TOKEN to your Railway Variables (or .env for local dev)');
   process.exit(1);
 }
 
 
+
 // ── Services: start ONCE per shard after bot is ready ────────────────────────
-client.once('ready', () => {
+// Note: Discord.js v14 renamed 'ready' → 'clientReady'. Using clientReady avoids the DeprecationWarning.
+client.once('clientReady', () => {
   try {
     const shardGuilds = client.guilds.cache.size;
     Logger.ok(`Shard#${SHARD_ID}`, `Logged in as ${client.user.tag}  •  Guilds: ${shardGuilds}  •  Ping: ${client.ws.ping}ms`);

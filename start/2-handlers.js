@@ -9,12 +9,21 @@ module.exports = async (client) => {
   let counter  = 0;
   const failed = [];
 
+  // When running under ShardingManager (SHARDING_ENABLED=true), the ShardingManager
+  // already owns PORT with its own /health server in shard.js.
+  // Loading keepAlive.js here too would cause EADDRINUSE → crash loop.
+  const isSharded = process.env.SHARDING_ENABLED === 'true';
+
   const handlers = [
     'slashCommandHandler.js',
-    client.config.source.keep_alive  ? 'keepAlive.js'  : null,
+    (client.config.source.keep_alive && !isSharded) ? 'keepAlive.js' : null,
     'extraEvents.js',
-    client.config.source.anti_crash  ? 'antiCrash.js'  : null,
+    client.config.source.anti_crash ? 'antiCrash.js' : null,
   ].filter(Boolean);
+
+  if (isSharded) {
+    Logger.info('Handlers', 'ShardingManager mode — keepAlive.js skipped (ShardManager owns PORT)');
+  }
 
   for (const handler of handlers) {
     try {

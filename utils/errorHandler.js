@@ -18,6 +18,8 @@ const NON_FATAL_PATTERNS = [
   /ECONNRESET/i,
   /ETIMEDOUT/i,
   /ECONNREFUSED/i,
+  /EADDRINUSE/i,      // port already in use — log but don't crash
+  /EACCES/i,          // permission denied on port — log but don't crash
   /AbortError/i,
   /Unknown Message/i,
   /Unknown Channel/i,
