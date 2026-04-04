@@ -4,7 +4,7 @@ const Logger  = require(`${process.cwd()}/utils/logger`);
 module.exports = async (client) => {
   const app  = express();
   const port = parseInt(process.env.PORT || client.config?.source?.port || 3000);
-  const isSharded = process.env.SHARDING_ENABLED === 'true';
+  const isSharded = process.env.SHARDING_ENABLED === 'true' || !!client.shard;
 
   // When running under ShardingManager, shard.js already owns PORT with its own
   // /health endpoint. Skip keepAlive to avoid EADDRINUSE → crash loop.
