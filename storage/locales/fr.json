@@ -1,0 +1,44 @@
+{
+  "ticket": {
+    "create": {
+      "title": "Nouveau Ticket Créé",
+      "description": "Un membre du personnel vous répondra sous peu. Veuillez décrire votre problème en détail.",
+      "claimed": "Ce ticket a été pris en charge par {staff}.",
+      "assigned": "Ce ticket a été assigné à {staff}.",
+      "already_open": "Vous avez déjà un ticket ouvert : {channel}",
+      "cooldown": "Vous devez attendre {seconds} secondes avant d'ouvrir un autre ticket.",
+      "max_reached": "Vous avez atteint le maximum de {max} tickets ouverts.",
+      "renamed": "Ticket renommé en `{name}`.",
+      "locked": "Ce ticket a été verrouillé par {staff}.",
+      "unlocked": "Ce ticket a été déverrouillé par {staff}.",
+      "closed": "Ticket fermé par {staff}.",
+      "deleted": "Ticket supprimé.",
+      "reopened": "Ticket rouvert par {staff}.",
+      "priority_set": "Priorité définie sur **{priority}** par {staff}.",
+      "duplicate_warning": "⚠️ Vous avez peut-être déjà un ticket similaire ouvert : {channel}"
+    },
+    "close": {
+      "confirm_title": "Fermer le Ticket ?",
+      "confirm_desc": "Êtes-vous sûr de vouloir fermer ce ticket ?",
+      "reason_prompt": "Veuillez fournir une raison pour fermer ce ticket.",
+      "transcript_sent": "Une transcription a été envoyée dans vos DM.",
+      "rating_prompt": "Comment évalueriez-vous votre expérience d'assistance ?",
+      "closed_by": "Fermé par {staff}"
+    }
+  },
+  "errors": {
+    "no_permission": "🔒 **Permission Refusée** — Vous n'avez pas la permission de faire cela.",
+    "not_in_ticket": "Cette commande ne peut être utilisée qu'à l'intérieur d'un canal de ticket.",
+    "user_not_found": "Utilisateur introuvable.",
+    "invalid_input": "Entrée invalide. Veuillez réessayer.",
+    "cooldown": "Veuillez attendre {seconds}s avant d'utiliser cette commande à nouveau.",
+    "generic": "Une erreur inattendue s'est produite. Veuillez réessayer."
+  },
+  "staff": {
+    "note": { "added": "📝 Note du personnel ajoutée par {staff}.", "title": "Notes du Personnel" },
+    "claim": { "success": "✅ Ticket pris en charge par {staff}.", "already_claimed": "Ce ticket est déjà pris en charge par {staff}." },
+    "shift": { "on_title": "🟢 Service Commencé", "off_title": "🔴 Service Terminé", "on_desc": "{staff} est maintenant **en service**.", "off_desc": "{staff} est **hors service**.", "duration": "Durée du service : {duration}" }
+  },
+  "rating": { "1": "😞 Très Insatisfait", "2": "😕 Insatisfait", "3": "😐 Neutre", "4": "😊 Satisfait", "5": "😄 Très Satisfait" },
+  "verify": { "gate_title": "🔒 Vérification Requise", "gate_desc": "Vous devez vous vérifier avant d'ouvrir un ticket.", "button": "Cliquez pour vérifier", "success": "✅ Vous êtes maintenant vérifié ! Vous pouvez ouvrir un ticket.", "failed": "❌ Échec de la vérification. Veuillez réessayer." }
+}

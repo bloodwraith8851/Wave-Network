@@ -1,0 +1,11 @@
+# nixpacks.toml — Nixpacks build configuration for Railway
+# Locks the Node.js version and sets up the build correctly.
+
+[phases.build]
+cmds = ["npm install --production=false"]
+
+[start]
+cmd = "node shard.js"
+
+[variables]
+NODE_ENV = "production"

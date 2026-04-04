@@ -1,22 +1,32 @@
-const fs = require('fs');
-var clc = require("cli-color");
+/**
+ * 2-handlers.js — Loads core handlers (commands, keepAlive, extraEvents, antiCrash)
+ */
+const fs     = require('fs');
+const Logger = require(`${process.cwd()}/utils/logger`);
+
 module.exports = async (client) => {
-//======== Loading Handlers =========
-var counter = 0;
-Array ("slashCommandHandler.js", client.config.source.keep_alive ?  "keepAlive.js" : null , "extraEvents.js" , client.config.source.anti_crash ? "antiCrash.js" : null)
-  .filter(Boolean)
-  .forEach((handler) => {
-    require(`${process.cwd()}/handlers/${handler}`)(client);
-    counter += 1;
-});  
-try {
-    const stringlength = 69;
-    console.log("\n")
-    console.log(clc.yellowBright(`     ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓`))
-    console.log(clc.yellowBright(`     ┃ `) + " ".repeat(-1 + stringlength - ` ┃ `.length) + clc.yellowBright("┃"))
-    console.log(clc.yellowBright(`     ┃ `) + clc.greenBright(`                   ${clc.magentaBright(counter)} Handlers Is Loaded!!`) + " ".repeat(-1 + stringlength - ` ┃ `.length - `                   ${counter} Handlers Is Loaded!!`.length) + clc.yellowBright("┃"))
-    console.log(clc.yellowBright(`     ┃ `) + " ".repeat(-1 + stringlength - ` ┃ `.length) + clc.yellowBright("┃"))
-    console.log(clc.yellowBright(`     ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛`))
-    console.log("\n")
-  } catch { /* */ }
-}
+  Logger.divider('Loading Handlers');
+  let counter  = 0;
+  const failed = [];
+
+  const handlers = [
+    'slashCommandHandler.js',
+    client.config.source.keep_alive  ? 'keepAlive.js'  : null,
+    'extraEvents.js',
+    client.config.source.anti_crash  ? 'antiCrash.js'  : null,
+  ].filter(Boolean);
+
+  for (const handler of handlers) {
+    try {
+      require(`${process.cwd()}/handlers/${handler}`)(client);
+      Logger.info('Handlers', `Loaded  ${handler}`);
+      counter++;
+    } catch (e) {
+      failed.push(handler);
+      Logger.error('Handlers', `Failed to load ${handler}`, e);
+    }
+  }
+
+  Logger.loadedBox('Handlers', counter);
+  if (failed.length) Logger.warn('Handlers', `${failed.length} handler(s) failed: ${failed.join(', ')}`);
+};

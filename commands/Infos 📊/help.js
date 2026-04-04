@@ -1,3 +1,15 @@
+/**
+ * help.js — /help command
+ *
+ * Category browser with dropdown + paginated embeds.
+ * Now includes all Phase 3–4d commands:
+ *   Config:    permissions, branding, faq-rules, sla, auto-assign, webhook,
+ *              verify, language, config-export, config-overview, blacklist
+ *   Staff:     canned, ticket-tag, ticket-search, shift, note, staff-stats
+ *   Community: faq, kb, poll, announce, report, suggest, feedback
+ *   Ticket:    ticket-forward, ticket-merge, schedule-close
+ *   Infos:     analytics, status, uptime, botinfo, serverinfo, userinfo, ping
+ */
 const {
   ButtonBuilder,
   ActionRowBuilder,
@@ -5,27 +17,46 @@ const {
   EmbedBuilder,
   ButtonStyle,
   ApplicationCommandType,
-  ApplicationCommandOptionType
+  ApplicationCommandOptionType,
 } = require('discord.js');
 const { HelpCategoryEmbed, errorMessage } = require(`${process.cwd()}/functions/functions`);
 
-// ── Category config ───────────────────────────────────────────────────────────
+// ── Category config (order matters — sets dropdown order) ────────────────────
 const CATEGORIES = [
-  { label: 'Infos',      value: 'Infos 📊',       emoji: '📊', color: '#6366F1' },
-  { label: 'Setup',      value: 'Setup 💻',        emoji: '💻', color: '#8B5CF6' },
-  { label: 'Ticket',     value: 'Ticket 🎫',       emoji: '🎫', color: '#7C3AED' },
-  { label: 'Staff',      value: 'Staff 🛡️',       emoji: '🛡️', color: '#EC4899' },
-  { label: 'Panel',      value: 'Panel 📋',        emoji: '📋', color: '#3B82F6' },
-  { label: 'Moderation', value: 'Moderation 🔨',  emoji: '🔨', color: '#EF4444' },
-  { label: 'Community',  value: 'Community 🌐',   emoji: '🌐', color: '#10B981' },
-  { label: 'Config',     value: 'Config ⚙️',       emoji: '⚙️', color: '#F59E0B' },
-  { label: 'Premium',    value: 'Premium 💎',      emoji: '💎', color: '#F59E0B' },
+  { label: 'Infos',       value: 'Infos 📊',        emoji: '📊', color: '#6366F1',
+    desc: 'Bot info, analytics, status, uptime, server/user info' },
+  { label: 'Setup',       value: 'Setup 💻',         emoji: '💻', color: '#8B5CF6',
+    desc: 'Initial bot setup and settings configuration' },
+  { label: 'Ticket',      value: 'Ticket 🎫',        emoji: '🎫', color: '#7C3AED',
+    desc: 'Create, manage, merge, forward, and schedule tickets' },
+  { label: 'Staff',       value: 'Staff 🛡️',        emoji: '🛡️', color: '#EC4899',
+    desc: 'Canned responses, notes, tags, search, shift tracker, stats' },
+  { label: 'Panel',       value: 'Panel 📋',         emoji: '📋', color: '#3B82F6',
+    desc: 'Ticket panels and UI creation' },
+  { label: 'Moderation',  value: 'Moderation 🔨',   emoji: '🔨', color: '#EF4444',
+    desc: 'Warn, timeout, slowmode, warnings management' },
+  { label: 'Community',   value: 'Community 🌐',    emoji: '🌐', color: '#10B981',
+    desc: 'FAQ, knowledge base, polls, suggestions, feedback' },
+  { label: 'Config',      value: 'Config ⚙️',        emoji: '⚙️', color: '#F59E0B',
+    desc: 'SLA, auto-assign, verification, webhooks, branding, i18n, blacklist' },
+  { label: 'Premium',     value: 'Premium 💎',       emoji: '💎', color: '#F59E0B',
+    desc: 'Premium exclusive features' },
 ];
-const OWNER_CAT = { label: 'Owner', value: 'Owner 👑', emoji: '👑', color: '#EF4444' };
+const OWNER_CAT = { label: 'Owner', value: 'Owner 👑', emoji: '👑', color: '#EF4444', desc: 'Owner-only commands' };
+
+// ── New command quick-reference per category (shown in landing embed) ────────
+const NEW_COMMANDS = {
+  'Config ⚙️':    '`/sla` `/auto-assign` `/webhook` `/verify` `/language` `/config-export` `/config-overview` `/blacklist` `/permissions` `/branding`',
+  'Staff 🛡️':    '`/note` `/shift` `/staff-stats` `/canned` `/ticket-tag` `/ticket-search` `/ticket-forward` `/ticket-merge` `/ticket-claim` `/ticket-priority` `/schedule-close` `/schedule-message`',
+  'Community 🌐': '`/feedback` `/faq` `/kb` `/poll` `/suggest` `/announce` `/report`',
+  'Infos 📊':     '`/analytics` overview · trend · categories · ratings',
+  'Moderation 🔨':'`/warn` `/warnings` `/clearwarnings` `/timeout` `/slowmode`',
+};
+
 
 module.exports = {
   name: 'help',
-  description: 'Browse all bot commands by category.',
+  description: 'Browse all bot commands by category, or look up a specific command.',
   category: 'Infos 📊',
   type: ApplicationCommandType.ChatInput,
   cooldown: 3,
@@ -35,24 +66,24 @@ module.exports = {
     name: 'command',
     description: 'Look up a specific command by name.',
     type: ApplicationCommandOptionType.String,
-    required: false
+    required: false,
   }],
 
   run: async (client, interaction) => {
     const commandName = interaction.options.getString('command');
     const isOwner     = client.config.owner.some(id => id === interaction.user.id);
 
-    // ── /help <command> — single command info ──────────────────────────────
+    // ── /help <command> — single command detail ───────────────────────────
     if (commandName) {
       const cmd = client.commands.get(commandName.toLowerCase());
-      if (!cmd) return interaction.reply({ content: `❌  \`${commandName}\` is not a valid command.`, ephemeral: true });
+      if (!cmd) return interaction.reply({ content: `❌  \`/${commandName}\` is not a recognised command. Use \`/help\` to browse.`, ephemeral: true });
       if (cmd.category === 'Owner 👑' && !isOwner) return errorMessage(client, interaction, 'You do not have permission to view this command.');
 
       const cm = client.application.commands.cache.find(c => c.name === cmd.name);
-      if (!cm) return interaction.reply({ content: `❌  Command not yet registered. Please wait a moment.`, ephemeral: true });
+      if (!cm) return interaction.reply({ content: `❌  Command not yet synced with Discord. Please wait a moment.`, ephemeral: true });
 
       const opts    = cm.options || [];
-      const hasSubs = opts.some(o => o.type === ApplicationCommandOptionType.Subcommand);
+      const hasSubs = opts.some(o => o.type === ApplicationCommandOptionType.Subcommand || o.type === 1);
       const lines   = [];
 
       lines.push(`> ${cm.description}`);
@@ -60,13 +91,15 @@ module.exports = {
 
       if (hasSubs) {
         lines.push('**Subcommands**');
-        opts.filter(o => o.type === ApplicationCommandOptionType.Subcommand).forEach((sub, i, arr) => {
-          const params  = (sub.options || []).map(o => o.required ? `<${o.name}>` : `[${o.name}]`).join(' ');
-          const prefix  = i === arr.length - 1 ? '╰' : '├';
-          lines.push(`\`${prefix} ${sub.name}${params ? ' ' + params : ''}\` — ${sub.description}`);
-        });
+        opts
+          .filter(o => o.type === ApplicationCommandOptionType.Subcommand || o.type === 1)
+          .forEach((sub, i, arr) => {
+            const params = (sub.options || []).map(o => o.required ? `<${o.name}>` : `[${o.name}]`).join(' ');
+            const prefix = i === arr.length - 1 ? '╰' : '├';
+            lines.push(`\`${prefix} ${sub.name}${params ? ' ' + params : ''}\` — ${sub.description}`);
+          });
       } else {
-        const params = opts.filter(o => o.type !== 2).map(o => o.required ? `<${o.name}>` : `[${o.name}]`).join(' ');
+        const params = opts.filter(o => o.type > 2).map(o => o.required ? `<${o.name}>` : `[${o.name}]`).join(' ');
         if (params) lines.push(`**Usage**\n\`/${cm.name} ${params}\``);
         if (opts.length) {
           lines.push('');
@@ -76,28 +109,30 @@ module.exports = {
           });
         }
       }
-      if (cmd.userPermissions?.length) lines.push(`\n**Permissions** — ${cmd.userPermissions.map(p => `\`${p}\``).join(' ')}`);
+
+      if (cmd.userPermissions?.length) lines.push(`\n**Required Permissions** — ${cmd.userPermissions.map(p => `\`${p}\``).join(' ')}`);
       if (cmd.cooldown) lines.push(`**Cooldown** — \`${cmd.cooldown}s\``);
+      if (cmd.category)  lines.push(`**Category** — ${cmd.category}`);
 
       const catConfig = [...CATEGORIES, OWNER_CAT].find(c => c.value === cmd.category);
 
-      const embed = new EmbedBuilder()
-        .setColor(catConfig?.color || '#7C3AED')
-        .setAuthor({ name: `/${cm.name}  ·  ${cmd.category}`, iconURL: client.user.displayAvatarURL({ dynamic: true }) })
-        .setDescription(lines.join('\n'))
-        .setFooter({ text: `Requested by ${interaction.user.tag}  ·  Wave Network`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) });
-
       return interaction.reply({
-        embeds: [embed],
+        embeds: [
+          new EmbedBuilder()
+            .setColor(catConfig?.color || '#7C3AED')
+            .setAuthor({ name: `/${cm.name}  ·  ${cmd.category}`, iconURL: client.user.displayAvatarURL({ dynamic: true }) })
+            .setDescription(lines.join('\n'))
+            .setFooter({ text: `<required>  [optional]  ·  Wave Network`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
+        ],
         components: [new ActionRowBuilder().addComponents(
           new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Invite').setURL(client.config.discord.invite),
-          new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setURL(client.config.discord.server_support)
-        )]
+          new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setURL(client.config.discord.server_support),
+        )],
       });
     }
 
-    // ── /help — category browser ───────────────────────────────────────────
-    const cats     = isOwner ? [...CATEGORIES, OWNER_CAT] : CATEGORIES;
+    // ── /help — full category browser ────────────────────────────────────
+    const cats      = isOwner ? [...CATEGORIES, OWNER_CAT] : CATEGORIES;
     const totalCmds = client.commands.size;
 
     // Count per category
@@ -106,17 +141,22 @@ module.exports = {
       catCounts[cmd.category] = (catCounts[cmd.category] || 0) + 1;
     }
 
-    // ── Build beautiful landing embed ─────────────────────────────────────
-    const guilds    = client.guilds.cache.size;
-    const users     = client.guilds.cache.reduce((a, g) => a + (g.memberCount || 0), 0);
+    const guilds = client.guilds.cache.size;
+    const users  = client.guilds.cache.reduce((a, g) => a + (g.memberCount || 0), 0);
 
-    const catLines = cats
+    // ── Category summary table ──────────────────────────────────────────────
+    const catTable = cats
       .filter(c => c.value !== 'Premium 💎')
       .map(c => {
         const count = catCounts[c.value] || 0;
-        return `${c.emoji}  **${c.label}** \`${count}\``;
+        return `${c.emoji}  **${c.label}** \`${count}\`  —  *${c.desc}*`;
       })
-      .join('  ·  ');
+      .join('\n');
+
+    // ── Highlight new Phase 4 commands ────────────────────────────────────
+    const highlightLines = Object.entries(NEW_COMMANDS)
+      .map(([cat, cmds]) => `**${cat}:** ${cmds}`)
+      .join('\n');
 
     const help = new EmbedBuilder()
       .setColor('#7C3AED')
@@ -124,56 +164,70 @@ module.exports = {
       .setThumbnail(client.user.displayAvatarURL({ dynamic: true, size: 256 }))
       .addFields([
         {
-          name: '👋  About Me',
+          name: '👋  About Wave Network',
           value: [
-            `> Hi👋🏻, I'm **[Wave Network](${client.config.discord.invite}) 🎫**`,
-            `> With my help, you can create a completely professional ticket system in your Discord server ⚙️`,
-            `> My capabilities and features include fast and strong support, slash commands, message commands, analytics, moderation and much more 🎓`
+            `> Hi 👋🏻 — I'm **[Wave Network](${client.config.discord.invite}) 🎫**`,
+            `> A **SaaS-level** Discord ticket system with SLA tracking, auto-assignment,`,
+            `> escalation, analytics, i18n, webhooks, verification gates, and much more.`,
           ].join('\n'),
-          inline: false
+          inline: false,
         },
         {
-          name: '📂  How to See Commands',
-          value: '> Select one of the categories from the **dropdown menu below** to see all commands in that section.',
-          inline: false
+          name: '📂  How to Browse Commands',
+          value: '> Use the **dropdown menu below** to explore commands by category.\n> Use `/help <command>` for detailed info on any specific command.',
+          inline: false,
         },
         {
-          name: '📊  Categories',
-          value: catLines || 'Loading...',
-          inline: false
+          name: '📊  Command Categories',
+          value: catTable || 'Loading…',
+          inline: false,
+        },
+        {
+          name: '✨  New Phase 4 Commands',
+          value: highlightLines,
+          inline: false,
         },
         { name: '🏠  Servers',   value: `\`${guilds}\``,    inline: true },
         { name: '👥  Users',     value: `\`${users}\``,     inline: true },
-        { name: '⚡  Commands',  value: `\`${totalCmds}\``, inline: true }
+        { name: '⚡  Commands',  value: `\`${totalCmds}\``, inline: true },
       ])
       .setFooter({ text: `Requested by ${interaction.user.tag}  ·  Wave Network  ·  /help <command> for details`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
       .setTimestamp();
 
-    // Build select menu
+    // Build dropdown
     const help_menu = new StringSelectMenuBuilder()
       .setCustomId('help_menu')
       .setMaxValues(1)
       .setMinValues(1)
-      .setPlaceholder('📂  Select a category...')
-      .addOptions(cats.map(c => ({ label: c.label, value: c.value, emoji: c.emoji })));
+      .setPlaceholder('📂  Select a category…')
+      .addOptions(cats.map(c => ({
+        label:       c.label,
+        value:       c.value,
+        emoji:       c.emoji,
+        description: c.desc?.slice(0, 50),
+      })));
 
     const home_btn = new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Home').setEmoji('🏠').setCustomId('home_page');
     const inv_btn  = new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Invite').setURL(client.config.discord.invite);
     const sup_btn  = new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setURL(client.config.discord.server_support);
 
     const makeComponents = (homeDisabled) => [
-      new ActionRowBuilder().addComponents(help_menu.setDisabled(false)),
-      new ActionRowBuilder().addComponents(home_btn.setDisabled(homeDisabled), inv_btn, sup_btn)
+      new ActionRowBuilder().addComponents(help_menu),
+      new ActionRowBuilder().addComponents(
+        home_btn.setDisabled(homeDisabled),
+        inv_btn,
+        sup_btn,
+      ),
     ];
 
     await interaction.reply({ embeds: [help], components: makeComponents(true) });
-    const embedMessage = await interaction.fetchReply();
+    const msg = await interaction.fetchReply();
 
-    const collector = embedMessage.createMessageComponentCollector({ time: 120000 });
+    const collector = msg.createMessageComponentCollector({ time: 120000 });
 
     collector.on('collect', async m => {
       if (m.user.id !== interaction.user.id) {
-        return m.reply({ content: `❌ Only ${interaction.user} can use this menu.`, ephemeral: true });
+        return m.reply({ content: `❌  Only ${interaction.user} can use this menu.`, ephemeral: true });
       }
       if (m.isButton() && m.customId === 'home_page') {
         return m.update({ embeds: [help], components: makeComponents(true) });
@@ -184,12 +238,13 @@ module.exports = {
     });
 
     collector.on('end', () => {
-      embedMessage.edit({
+      msg.edit({
         components: [new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId('exp').setLabel('Expired').setStyle(ButtonStyle.Secondary).setDisabled(true),
-          inv_btn, sup_btn
-        )]
+          new ButtonBuilder().setCustomId('exp').setLabel('Expired — run /help again').setStyle(ButtonStyle.Secondary).setDisabled(true),
+          inv_btn,
+          sup_btn,
+        )],
       }).catch(() => null);
     });
-  }
+  },
 };

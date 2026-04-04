@@ -1,0 +1,44 @@
+{
+  "ticket": {
+    "create": {
+      "title": "Nuevo Ticket Creado",
+      "description": "Un miembro del personal estará contigo en breve. Por favor, describe tu problema en detalle.",
+      "claimed": "Este ticket ha sido reclamado por {staff}.",
+      "assigned": "Este ticket ha sido asignado a {staff}.",
+      "already_open": "Ya tienes un ticket abierto: {channel}",
+      "cooldown": "Debes esperar {seconds} segundos antes de abrir otro ticket.",
+      "max_reached": "Has alcanzado el máximo de {max} tickets abiertos.",
+      "renamed": "Ticket renombrado a `{name}`.",
+      "locked": "Este ticket ha sido bloqueado por {staff}.",
+      "unlocked": "Este ticket ha sido desbloqueado por {staff}.",
+      "closed": "Ticket cerrado por {staff}.",
+      "deleted": "Ticket eliminado.",
+      "reopened": "Ticket reabierto por {staff}.",
+      "priority_set": "Prioridad establecida en **{priority}** por {staff}.",
+      "duplicate_warning": "⚠️ Es posible que ya tengas un ticket similar abierto: {channel}"
+    },
+    "close": {
+      "confirm_title": "¿Cerrar Ticket?",
+      "confirm_desc": "¿Estás seguro de que quieres cerrar este ticket?",
+      "reason_prompt": "Por favor, proporciona una razón para cerrar este ticket.",
+      "transcript_sent": "Se ha enviado una transcripción a tus DMs.",
+      "rating_prompt": "¿Cómo calificarías tu experiencia de soporte?",
+      "closed_by": "Cerrado por {staff}"
+    }
+  },
+  "errors": {
+    "no_permission": "🔒 **Permiso Denegado** — No tienes permiso para hacer esto.",
+    "not_in_ticket": "Este comando solo se puede usar dentro de un canal de tickets.",
+    "user_not_found": "Usuario no encontrado.",
+    "invalid_input": "Entrada inválida. Por favor, inténtalo de nuevo.",
+    "cooldown": "Por favor, espera {seconds}s antes de usar este comando nuevamente.",
+    "generic": "Ocurrió un error inesperado. Por favor, inténtalo de nuevo."
+  },
+  "staff": {
+    "note": { "added": "📝 Nota del personal añadida por {staff}.", "title": "Notas del Personal" },
+    "claim": { "success": "✅ Ticket reclamado por {staff}.", "already_claimed": "Este ticket ya fue reclamado por {staff}." },
+    "shift": { "on_title": "🟢 Turno Iniciado", "off_title": "🔴 Turno Finalizado", "on_desc": "{staff} está ahora **de guardia**.", "off_desc": "{staff} se ha ido **fuera de guardia**.", "duration": "Duración del turno: {duration}" }
+  },
+  "rating": { "1": "😞 Muy Insatisfecho", "2": "😕 Insatisfecho", "3": "😐 Neutral", "4": "😊 Satisfecho", "5": "😄 Muy Satisfecho" },
+  "verify": { "gate_title": "🔒 Verificación Requerida", "gate_desc": "Debes verificarte antes de abrir un ticket.", "button": "Haz clic para verificar", "success": "✅ ¡Ahora estás verificado! Puedes abrir un ticket.", "failed": "❌ Verificación fallida. Por favor, inténtalo de nuevo." }
+}

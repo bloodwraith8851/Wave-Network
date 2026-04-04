@@ -1,15 +1,18 @@
 /**
  * botinfo.js — /botinfo
- * Displays detailed bot statistics, uptime, and system info.
+ * Displays detailed bot statistics across ALL shards, uptime, system info.
+ * Uses shardUtils for cross-shard totals when ShardingManager is active.
  */
 const {
-  EmbedBuilder,
   ApplicationCommandType,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle
+  ButtonStyle,
 } = require('discord.js');
-const { premiumEmbed } = require(`${process.cwd()}/functions/functions`);
+const { premiumEmbed }                          = require(`${process.cwd()}/functions/functions`);
+const { getTotalGuildCount, getTotalUserCount,
+        getAveragePing, getShardCount,
+        getCurrentShardId, getShardStats }      = require(`${process.cwd()}/utils/shardUtils`);
 
 function formatUptime(ms) {
   const s = Math.floor(ms / 1000);
@@ -17,16 +20,21 @@ function formatUptime(ms) {
   const h = Math.floor(m / 60);
   const d = Math.floor(h / 24);
   return [
-    d > 0 ? `${d}d` : null,
-    h % 24 > 0 ? `${h % 24}h` : null,
-    m % 60 > 0 ? `${m % 60}m` : null,
-    `${s % 60}s`
+    d > 0       ? `${d}d`       : null,
+    h % 24 > 0  ? `${h % 24}h` : null,
+    m % 60 > 0  ? `${m % 60}m` : null,
+    `${s % 60}s`,
   ].filter(Boolean).join(' ');
+}
+
+function asciiPing(ping, max = 400, len = 10) {
+  const filled = Math.min(Math.round((ping / max) * len), len);
+  return `${'█'.repeat(filled)}${'░'.repeat(len - filled)}`;
 }
 
 module.exports = {
   name: 'botinfo',
-  description: 'View detailed bot statistics and system info.',
+  description: 'View detailed bot statistics and system info (all shards).',
   category: 'Infos 📊',
   cooldown: 5,
   type: ApplicationCommandType.ChatInput,
@@ -34,63 +42,84 @@ module.exports = {
   botPermissions: ['SendMessages', 'EmbedLinks'],
 
   run: async (client, interaction) => {
+    await interaction.deferReply();
+
     const { heapUsed, rss } = process.memoryUsage();
-    const memUsed  = (heapUsed / 1024 / 1024).toFixed(2);
-    const memTotal = (rss / 1024 / 1024).toFixed(2);
-    const ping     = client.ws.ping;
-    const uptime   = formatUptime(client.uptime);
-    const guilds   = client.guilds.cache.size;
-    const users    = client.guilds.cache.reduce((a, g) => a + g.memberCount, 0);
-    const channels = client.channels.cache.size;
-    const cmds     = client.commands.size;
+    const memUsed   = (heapUsed / 1024 / 1024).toFixed(1);
+    const memTotal  = (rss      / 1024 / 1024).toFixed(1);
+    const uptime    = formatUptime(client.uptime);
+    const cmds      = client.commands.size;
+    const version   = require(`${process.cwd()}/package.json`).version;
+    const djsVer    = require('discord.js').version;
+
+    // ── Cross-shard stats ─────────────────────────────────────────────────
+    const [totalGuilds, totalUsers, avgPing, shardStats] = await Promise.all([
+      getTotalGuildCount(client),
+      getTotalUserCount(client),
+      getAveragePing(client),
+      getShardStats(client),
+    ]);
+    const totalShards   = getShardCount(client);
+    const currentShardId = getCurrentShardId(client);
+
+    // ── Per-shard table ───────────────────────────────────────────────────
+    const shardLines = shardStats.map(s =>
+      `\`#${String(s.shardId).padEnd(2)}\` ${s.shardId === currentShardId ? '← you' : '     '} `+
+      `ping: \`${s.ping}ms\` ${asciiPing(s.ping)}  guilds: \`${s.guilds}\`  mem: \`${s.mem}MB\``
+    ).join('\n') || '*Shard data unavailable*';
 
     const embed = premiumEmbed(client, {
-      title: `🤖  ${client.user.username} — Bot Info`,
-      color: '#7C3AED'
+      title: `🤖  ${client.user.username}  ·  Bot Info`,
+      color: '#7C3AED',
     })
       .setThumbnail(client.user.displayAvatarURL({ dynamic: true }))
       .addFields([
         {
-          name: '📊  General',
+          name: '📊  Network',
           value: [
-            `> **Servers:** \`${guilds.toLocaleString()}\``,
-            `> **Users:** \`${users.toLocaleString()}\``,
-            `> **Channels:** \`${channels.toLocaleString()}\``,
-            `> **Commands:** \`${cmds}\``
+            `> **Total Guilds:** \`${totalGuilds.toLocaleString()}\``,
+            `> **Total Users:**  \`${totalUsers.toLocaleString()}\``,
+            `> **Channels:**     \`${client.channels.cache.size.toLocaleString()}\``,
+            `> **Commands:**     \`${cmds}\``,
           ].join('\n'),
-          inline: true
+          inline: true,
         },
         {
           name: '⚙️  System',
           value: [
-            `> **Node.js:** \`${process.version}\``,
-            `> **Discord.js:** \`v${require('discord.js').version}\``,
-            `> **Platform:** \`${process.platform} ${process.arch}\``,
-            `> **Memory:** \`${memUsed} MB / ${memTotal} MB\``
+            `> **Node.js:**       \`${process.version}\``,
+            `> **Discord.js:**    \`v${djsVer}\``,
+            `> **Platform:**      \`${process.platform} ${process.arch}\``,
+            `> **Heap / RSS:**    \`${memUsed} / ${memTotal} MB\``,
           ].join('\n'),
-          inline: true
+          inline: true,
         },
         {
           name: '📡  Status',
           value: [
-            `> **Uptime:** \`${uptime}\``,
-            `> **Ping:** \`${ping}ms\``,
-            `> **Shards:** \`${client.shard ? client.shard.count : 1}\``,
-            `> **Version:** \`v${require(`${process.cwd()}/package.json`).version}\``
+            `> **Uptime:**   \`${uptime}\``,
+            `> **Avg Ping:** \`${avgPing}ms\``,
+            `> **Shards:**   \`${totalShards}\``,
+            `> **Version:**  \`v${version}\``,
           ].join('\n'),
-          inline: false
-        }
+          inline: false,
+        },
+        {
+          name: `🧩  Per-shard Breakdown  ·  ${totalShards} shard${totalShards !== 1 ? 's' : ''}`,
+          value: shardLines.slice(0, 1000),
+          inline: false,
+        },
       ])
       .setFooter({
-        text: `Requested by ${interaction.user.tag}  •  Wave Network`,
-        iconURL: interaction.user.displayAvatarURL({ dynamic: true })
+        text: `Requested by ${interaction.user.tag}  ·  Shard #${currentShardId}  ·  Wave Network`,
+        iconURL: interaction.user.displayAvatarURL({ dynamic: true }),
       });
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Invite Bot').setEmoji('📨').setURL(client.config.discord.invite),
-      new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji('💬').setURL(client.config.discord.server_support)
+      new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji('💬').setURL(client.config.discord.server_support),
     );
 
-    return interaction.reply({ embeds: [embed], components: [row] });
-  }
+    return interaction.editReply({ embeds: [embed], components: [row] });
+  },
 };

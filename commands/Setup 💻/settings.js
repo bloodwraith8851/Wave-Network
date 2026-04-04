@@ -32,13 +32,18 @@ const {
         let menu = new StringSelectMenuBuilder().setCustomId("setup_menu").setMaxValues(1).setMinValues(1).setPlaceholder(`${client.emotes.setting}| Click me to setup !!`).addOptions([
           { label: `Setup Bot Language`,       value: `stlanguage`, emoji: `${client.emotes.language}` },
           { label: `Setup Admin Role`,          value: `stadmin`,    emoji: `${client.emotes.admin}` },
+          { label: `Setup Mod Role`,            value: `stmod`,      emoji: `⚒️` },
+          { label: `Setup Staff Role`,          value: `ststaff`,    emoji: `🛡️` },
           { label: `Setup Ticket Category`,     value: `stcategory`, emoji: `${client.emotes.category}` },
           { label: `Setup Ticket Log`,          value: `stlog`,      emoji: `${client.emotes.log}` },
           { label: `Setup Ticket Type`,         value: `sttype`,     emoji: `${client.emotes.type}` },
           { label: `Setup Ticket Menu Option`,  value: `stoption`,   emoji: `${client.emotes.option}` },
           { label: `Setup Max Open Tickets`,    value: `stmaxtickets`, emoji: `🎟️` },
           { label: `Setup Ticket Cooldown`,     value: `stcooldown`,   emoji: `⏳` },
-          { label: `Setup Transcript Channel`,  value: `sttranscript`, emoji: `📄` }
+          { label: `Setup Transcript Channel`,  value: `sttranscript`, emoji: `📄` },
+          { label: `Toggle Auto-Close`,         value: `stAutoClose`,  emoji: `🕒` },
+          { label: `Toggle Staff Reminders`,    value: `stReminders`,  emoji: `🔔` },
+          { label: `Toggle Rating DMs`,         value: `stRatings`,    emoji: `⭐` },
         ])
         let time = 120000;
         interaction.reply({
@@ -225,6 +230,48 @@ const {
                       ]
                     })
                   }
+                  // ── MOD ROLE ─────────────────────────────────────────────
+                  if (m.values[0] === 'stmod') {
+                    const cur = await db.get(`guild_${interaction.guild.id}.permissions.roles.moderator`);
+                    m.update({
+                      embeds: [premiumEmbed(client, { title: `⚒️  Mod Role Setting`, description: `**Current:** ${cur ? `<@&${cur}>` : '`Not set`'}\n\nSelect the role to assign as **Moderator (Level 2)**.`, color: '#3B82F6' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(m.guild.iconURL({ dynamic: true }))],
+                      components: [
+                        new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder({ customId: 'mod_role', placeholder: 'Select Mod Role' })),
+                        new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Remove Mod Role').setEmoji(client.emotes.trash).setCustomId('remove_mod_role'), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('Home Page').setEmoji(client.emotes.home).setCustomId('home_page'))
+                      ]
+                    })
+                  }
+                  // ── STAFF ROLE ───────────────────────────────────────────
+                  if (m.values[0] === 'ststaff') {
+                    const cur = await db.get(`guild_${interaction.guild.id}.permissions.roles.staff`);
+                    m.update({
+                      embeds: [premiumEmbed(client, { title: `🛡️  Staff Role Setting`, description: `**Current:** ${cur ? `<@&${cur}>` : '`Not set`'}\n\nSelect the role to assign as **Staff (Level 1)**.`, color: '#10B981' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(m.guild.iconURL({ dynamic: true }))],
+                      components: [
+                        new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder({ customId: 'staff_role', placeholder: 'Select Staff Role' })),
+                        new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Remove Staff Role').setEmoji(client.emotes.trash).setCustomId('remove_staff_role'), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('Home Page').setEmoji(client.emotes.home).setCustomId('home_page'))
+                      ]
+                    })
+                  }
+                  // ── TOGGLE AUTO-CLOSE ─────────────────────────────────────
+                  if (m.values[0] === 'stAutoClose') {
+                    const cur = (await db.get(`guild_${interaction.guild.id}.ticket.settings.auto_close_hours`)) ?? 24;
+                    const enabled = cur !== 0;
+                    await db.set(`guild_${interaction.guild.id}.ticket.settings.auto_close_hours`, enabled ? 0 : 24);
+                    m.update({ embeds: [premiumEmbed(client, { title: `🕒  Auto-Close ${enabled ? 'Disabled' : 'Enabled'}`, description: `Auto-close is now **${enabled ? '❌ Disabled' : '✅ Enabled (24h default)'}**.`, color: enabled ? '#EF4444' : '#10B981' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })], components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('Home Page').setEmoji(client.emotes.home).setCustomId('home_page'))] })
+                  }
+                  // ── TOGGLE REMINDERS ──────────────────────────────────────
+                  if (m.values[0] === 'stReminders') {
+                    const cur = (await db.get(`guild_${interaction.guild.id}.ticket.settings.reminder_minutes`)) ?? 30;
+                    const enabled = cur !== 0;
+                    await db.set(`guild_${interaction.guild.id}.ticket.settings.reminder_minutes`, enabled ? 0 : 30);
+                    m.update({ embeds: [premiumEmbed(client, { title: `🔔  Staff Reminders ${enabled ? 'Disabled' : 'Enabled'}`, description: `Staff reminders are now **${enabled ? '❌ Disabled' : '✅ Enabled (30min default)'}**.`, color: enabled ? '#EF4444' : '#10B981' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })], components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('Home Page').setEmoji(client.emotes.home).setCustomId('home_page'))] })
+                  }
+                  // ── TOGGLE RATINGS ────────────────────────────────────────
+                  if (m.values[0] === 'stRatings') {
+                    const cur = (await db.get(`guild_${interaction.guild.id}.ticket.settings.ratings_enabled`)) ?? true;
+                    await db.set(`guild_${interaction.guild.id}.ticket.settings.ratings_enabled`, !cur);
+                    m.update({ embeds: [premiumEmbed(client, { title: `⭐  Rating DMs ${cur ? 'Disabled' : 'Enabled'}`, description: `Rating DMs are now **${cur ? '❌ Disabled' : '✅ Enabled'}**.`, color: cur ? '#EF4444' : '#10B981' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })], components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('Home Page').setEmoji(client.emotes.home).setCustomId('home_page'))] })
+                  }
                 }
               }
               if (m.isChannelSelectMenu()) {
@@ -280,13 +327,26 @@ const {
                   m.values.forEach(async (value) => {
                     let role = m.guild.roles.cache.find(r => r.id === value);
                     await db.set(`guild_${interaction.guild.id}.ticket.admin_role`, role.id)
+                    // Also sync to permission service key
+                    await db.set(`guild_${interaction.guild.id}.permissions.roles.admin`, role.id)
                     m.update({
                       embeds: [new EmbedBuilder().setTitle(`${client.emotes.system}| Admin Role Setuped`).setColor(client.colors.none).setDescription(`guild **admin role** successfully setuped to ${role}.`).setFooter({ text: `Setting • Requested By ${m.user.tag} `, iconURL: m.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(m.guild.iconURL({ dynamic: true }))],
                       components: [new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder({ customId: 'none', placeholder: 'Admin Role Is Enabled!!', disabled: true })), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Remove Admin Role').setEmoji(client.emotes.trash).setCustomId("remove_admin_role"), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('Home Page').setEmoji(client.emotes.home).setCustomId("home_page").setDisabled(false))]
                     })
                   })
                 }
+                if (m.customId === 'mod_role') {
+                  const roleId = m.values[0];
+                  await db.set(`guild_${interaction.guild.id}.permissions.roles.moderator`, roleId);
+                  m.update({ embeds: [premiumEmbed(client, { title: `⚒️  Mod Role Set`, description: `<@&${roleId}> is now the **Moderator (Level 2)** role.`, color: '#3B82F6' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })], components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('Home Page').setEmoji(client.emotes.home).setCustomId('home_page'))] })
+                }
+                if (m.customId === 'staff_role') {
+                  const roleId = m.values[0];
+                  await db.set(`guild_${interaction.guild.id}.permissions.roles.staff`, roleId);
+                  m.update({ embeds: [premiumEmbed(client, { title: `🛡️  Staff Role Set`, description: `<@&${roleId}> is now the **Staff (Level 1)** role.`, color: '#10B981' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })], components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('Home Page').setEmoji(client.emotes.home).setCustomId('home_page'))] })
+                }
               }
+
             } else {
               return errorMessage(client, m, `This message only for ${interaction.user} and you can't use it.`)
             }

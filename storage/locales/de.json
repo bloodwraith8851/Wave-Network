@@ -1,0 +1,44 @@
+{
+  "ticket": {
+    "create": {
+      "title": "Neues Ticket Erstellt",
+      "description": "Ein Mitarbeiter wird sich in Kürze bei Ihnen melden. Bitte beschreiben Sie Ihr Problem ausführlich.",
+      "claimed": "Dieses Ticket wurde von {staff} übernommen.",
+      "assigned": "Dieses Ticket wurde {staff} zugewiesen.",
+      "already_open": "Sie haben bereits ein offenes Ticket: {channel}",
+      "cooldown": "Sie müssen {seconds} Sekunden warten, bevor Sie ein weiteres Ticket öffnen.",
+      "max_reached": "Sie haben das Maximum von {max} offenen Tickets erreicht.",
+      "renamed": "Ticket umbenannt zu `{name}`.",
+      "locked": "Dieses Ticket wurde von {staff} gesperrt.",
+      "unlocked": "Dieses Ticket wurde von {staff} entsperrt.",
+      "closed": "Ticket von {staff} geschlossen.",
+      "deleted": "Ticket gelöscht.",
+      "reopened": "Ticket von {staff} wiedereröffnet.",
+      "priority_set": "Priorität auf **{priority}** von {staff} gesetzt.",
+      "duplicate_warning": "⚠️ Sie haben möglicherweise bereits ein ähnliches offenes Ticket: {channel}"
+    },
+    "close": {
+      "confirm_title": "Ticket schließen?",
+      "confirm_desc": "Sind Sie sicher, dass Sie dieses Ticket schließen möchten?",
+      "reason_prompt": "Bitte geben Sie einen Grund für das Schließen dieses Tickets an.",
+      "transcript_sent": "Ein Transkript wurde an Ihre DMs gesendet.",
+      "rating_prompt": "Wie würden Sie Ihre Support-Erfahrung bewerten?",
+      "closed_by": "Geschlossen von {staff}"
+    }
+  },
+  "errors": {
+    "no_permission": "🔒 **Zugriff Verweigert** — Sie haben keine Berechtigung, dies zu tun.",
+    "not_in_ticket": "Dieser Befehl kann nur in einem Ticketkanal verwendet werden.",
+    "user_not_found": "Benutzer nicht gefunden.",
+    "invalid_input": "Ungültige Eingabe. Bitte versuchen Sie es erneut.",
+    "cooldown": "Bitte warten Sie {seconds}s, bevor Sie diesen Befehl erneut verwenden.",
+    "generic": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
+  },
+  "staff": {
+    "note": { "added": "📝 Mitarbeiternotiz von {staff} hinzugefügt.", "title": "Mitarbeiternotizen" },
+    "claim": { "success": "✅ Ticket von {staff} übernommen.", "already_claimed": "Dieses Ticket wurde bereits von {staff} übernommen." },
+    "shift": { "on_title": "🟢 Schicht Begonnen", "off_title": "🔴 Schicht Beendet", "on_desc": "{staff} ist jetzt **im Dienst**.", "off_desc": "{staff} ist **außer Dienst**.", "duration": "Schichtdauer: {duration}" }
+  },
+  "rating": { "1": "😞 Sehr Unzufrieden", "2": "😕 Unzufrieden", "3": "😐 Neutral", "4": "😊 Zufrieden", "5": "😄 Sehr Zufrieden" },
+  "verify": { "gate_title": "🔒 Verifizierung Erforderlich", "gate_desc": "Sie müssen sich verifizieren, bevor Sie ein Ticket öffnen.", "button": "Zum Verifizieren klicken", "success": "✅ Sie sind jetzt verifiziert! Sie können ein Ticket öffnen.", "failed": "❌ Verifizierung fehlgeschlagen. Bitte versuchen Sie es erneut." }
+}

@@ -1,9 +1,9 @@
 {
-  "name": "Wave Network",
-  "main": "index.js",
+  "name": "wave-network",
+  "main": "shard.js",
   "author": "bloodwraith_.| Dino",
-  "version": "1.3.1",
-  "description": "this is wonderful ticket bot with perfect handlering and had perfect tools.",
+  "version": "2.0.0",
+  "description": "Premium SaaS-level Discord ticket system with ShardingManager, SLA tracking, auto-assignment, analytics, and i18n.",
   "license": "BSD",
   "repository": {
     "type": "git",
@@ -24,8 +24,13 @@
     "Dino"
   ],
   "scripts": {
-    "start": "node index.js",
+    "start": "node shard.js",
+    "dev": "node shard.js --dev",
+    "standalone": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "cli-color": "^2.0.4",

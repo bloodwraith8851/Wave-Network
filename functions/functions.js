@@ -84,48 +84,76 @@ async function errorMessage(client, interaction, error) {
   let color = '#EF4444';
   let hint  = '';
 
-  if (/permission|manage|administrator|missing/i.test(msg)) {
-    title = '🔒  Permission Denied';
-    color = '#8B5CF6';
+  if (/permission|manage|administrator|missing access|missing permissions/i.test(msg)) {
+    title = '🔒  Permission Denied'; color = '#8B5CF6';
     hint  = '\n\n> You lack the required permissions for this action.';
   } else if (/cooldown|wait|seconds/i.test(msg)) {
-    title = '⏱️  Cooldown Active';
-    color = '#F59E0B';
+    title = '⏱️  Cooldown Active'; color = '#F59E0B';
     hint  = '\n\n> Please wait before using this command again.';
   } else if (/not found|invalid|no .*found|doesn.t exist/i.test(msg)) {
-    title = '🔍  Not Found';
-    color = '#6B7280';
+    title = '🔍  Not Found'; color = '#6B7280';
     hint  = '\n\n> The requested resource could not be found.';
   } else if (/config|setup|settings|not set|not configured/i.test(msg)) {
-    title = '⚙️  Configuration Required';
-    color = '#F97316';
-    hint  = '\n\n> Run `/settings` or `/config` to set this up.';
+    title = '⚙️  Configuration Required'; color = '#F97316';
+    hint  = '\n\n> Run `/settings` to set this up first.';
   } else if (/staff|admin role|ticket admin/i.test(msg)) {
-    title = '🛡️  Staff Only';
-    color = '#EC4899';
-    hint  = '\n\n> This action requires the ticket admin role or Manage Channels permission.';
+    title = '🛡️  Staff Only'; color = '#EC4899';
+    hint  = '\n\n> This action requires Staff/Admin level or higher.';
+  } else if (/ticket/i.test(msg) && /already|open|exist/i.test(msg)) {
+    title = '🎫  Ticket Already Exists'; color = '#F59E0B';
+    hint  = '\n\n> You already have an open ticket.';
+  } else if (/rate.?limit/i.test(msg)) {
+    title = '🌐  Rate Limited'; color = '#06B6D4';
+    hint  = '\n\n> The bot is being rate-limited. Please try again shortly.';
+  } else if (/database|db|quick.?db/i.test(msg)) {
+    title = '🗄️  Database Error'; color = '#EF4444';
+    hint  = '\n\n> A database error occurred. Please try again.';
+  } else if (/network|econnreset|etimedout|econnrefused/i.test(msg)) {
+    title = '📡  Network Error'; color = '#6B7280';
+    hint  = '\n\n> A network issue occurred. Please try again shortly.';
+  } else if (/inside a ticket/i.test(msg)) {
+    title = '🎫  Not In a Ticket'; color = '#6B7280';
+    hint  = '\n\n> This command must be used inside a ticket channel.';
+  } else if (/blacklist/i.test(msg)) {
+    title = '🚫  Blacklisted Content'; color = '#EF4444';
+    hint  = '\n\n> Your message contains a flagged keyword.';
+  } else if (/max|limit|reached/i.test(msg)) {
+    title = '📦  Limit Reached'; color = '#F97316';
+    hint  = '\n\n> You have reached the maximum allowed for this feature.';
   }
 
-  return interaction.reply({
-    embeds: [
-      new EmbedBuilder()
-        .setTitle(title)
-        .setColor(color)
-        .setDescription(`${msg}${hint}`)
-        .setFooter({
-          text: `${member?.user?.tag || interaction.user?.tag || 'Unknown'}  •  Wave Network`,
-          iconURL: (member?.user || interaction.user)?.displayAvatarURL({ dynamic: true })
-        })
-        .setTimestamp()
-    ],
-    components: [
-      new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Error').setEmoji('⚠️').setCustomId('error').setDisabled(true)
-      )
-    ],
-    ephemeral: true,
-  }).catch(() => null);
+  const embed = new EmbedBuilder()
+    .setTitle(title)
+    .setColor(color)
+    .setDescription(`${msg}${hint}`)
+    .setFooter({
+      text: `${member?.user?.tag || interaction.user?.tag || 'Unknown'}  •  Wave Network`,
+      iconURL: (member?.user || interaction.user)?.displayAvatarURL({ dynamic: true })
+    })
+    .setTimestamp();
+
+  const components = [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Error').setEmoji('⚠️').setCustomId('error_btn').setDisabled(true)
+    )
+  ];
+
+  const payload = { embeds: [embed], components, ephemeral: true };
+
+  // ── Safe reply: handles deferred, already-replied, and expired interactions ──
+  try {
+    if (interaction.deferred && !interaction.replied) {
+      return await interaction.editReply(payload).catch(() => null);
+    }
+    if (interaction.replied) {
+      return await interaction.followUp(payload).catch(() => null);
+    }
+    return await interaction.reply(payload).catch(() => null);
+  } catch {
+    return null;
+  }
 }
+
 
 /**
  * Log to the mod log channel with a premium embed.
@@ -255,10 +283,10 @@ async function HelpCategoryEmbed(commands, CategoryName, client, message, compon
   return message.update({ embeds: [embed], components: component });
 }
 
+// BUG FIX #3: Was a busy-wait spin loop that blocked the entire Node.js event loop.
+// Replaced with a non-blocking Promise+setTimeout so other handlers keep running.
 async function wait(ms) {
-  let start = new Date().getTime();
-  let end = start;
-  while (end < start + ms) { end = new Date().getTime(); }
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function epochDateNow() {

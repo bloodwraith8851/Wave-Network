@@ -1,11 +1,11 @@
-let clc = require('cli-color');
-module.exports = async (client) => {
-  client.logger(clc.bgYellowBright(`Reconnceting at ${new Date()}.`));
-    setInterval(() => {
-     if(!client || !client.user) {
-      console.log("The Client Didn't Login Proccesing Kill 1")
-        process.kill(1);
-    } else {
-   }
-  }, 10000); 
-}
+/**
+ * reconnecting.js — Discord client 'shardReconnecting' event
+ *
+ * Fires each time a shard begins reconnecting.
+ */
+const clc = require('cli-color');
+
+module.exports = (client, shardId) => {
+  const ts = new Date().toISOString();
+  console.log(clc.yellow(`[${ts}] [Reconnecting] Shard ${shardId ?? 0} is reconnecting…`));
+};

@@ -1,0 +1,44 @@
+{
+  "ticket": {
+    "create": {
+      "title": "Novo Ticket Criado",
+      "description": "Um membro da equipe estará com você em breve. Por favor, descreva seu problema em detalhes.",
+      "claimed": "Este ticket foi assumido por {staff}.",
+      "assigned": "Este ticket foi atribuído a {staff}.",
+      "already_open": "Você já tem um ticket aberto: {channel}",
+      "cooldown": "Você deve esperar {seconds} segundos antes de abrir outro ticket.",
+      "max_reached": "Você atingiu o máximo de {max} tickets abertos.",
+      "renamed": "Ticket renomeado para `{name}`.",
+      "locked": "Este ticket foi bloqueado por {staff}.",
+      "unlocked": "Este ticket foi desbloqueado por {staff}.",
+      "closed": "Ticket fechado por {staff}.",
+      "deleted": "Ticket excluído.",
+      "reopened": "Ticket reaberto por {staff}.",
+      "priority_set": "Prioridade definida para **{priority}** por {staff}.",
+      "duplicate_warning": "⚠️ Você pode já ter um ticket semelhante aberto: {channel}"
+    },
+    "close": {
+      "confirm_title": "Fechar Ticket?",
+      "confirm_desc": "Tem certeza de que deseja fechar este ticket?",
+      "reason_prompt": "Por favor, forneça um motivo para fechar este ticket.",
+      "transcript_sent": "Uma transcrição foi enviada para suas DMs.",
+      "rating_prompt": "Como você avaliaria sua experiência de suporte?",
+      "closed_by": "Fechado por {staff}"
+    }
+  },
+  "errors": {
+    "no_permission": "🔒 **Permissão Negada** — Você não tem permissão para fazer isso.",
+    "not_in_ticket": "Este comando só pode ser usado dentro de um canal de ticket.",
+    "user_not_found": "Usuário não encontrado.",
+    "invalid_input": "Entrada inválida. Por favor, tente novamente.",
+    "cooldown": "Por favor, aguarde {seconds}s antes de usar este comando novamente.",
+    "generic": "Ocorreu um erro inesperado. Por favor, tente novamente."
+  },
+  "staff": {
+    "note": { "added": "📝 Nota da equipe adicionada por {staff}.", "title": "Notas da Equipe" },
+    "claim": { "success": "✅ Ticket assumido por {staff}.", "already_claimed": "Este ticket já foi assumido por {staff}." },
+    "shift": { "on_title": "🟢 Turno Iniciado", "off_title": "🔴 Turno Encerrado", "on_desc": "{staff} está agora **em serviço**.", "off_desc": "{staff} **saiu de serviço**.", "duration": "Duração do turno: {duration}" }
+  },
+  "rating": { "1": "😞 Muito Insatisfeito", "2": "😕 Insatisfeito", "3": "😐 Neutro", "4": "😊 Satisfeito", "5": "😄 Muito Satisfeito" },
+  "verify": { "gate_title": "🔒 Verificação Necessária", "gate_desc": "Você deve se verificar antes de abrir um ticket.", "button": "Clique para verificar", "success": "✅ Você está verificado! Pode abrir um ticket.", "failed": "❌ Verificação falhou. Por favor, tente novamente." }
+}

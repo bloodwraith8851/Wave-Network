@@ -1,55 +1,72 @@
-const {
-  readdirSync
-} = require("fs");
-var clc = require("cli-color");
+/**
+ * slashCommandHandler.js — Loads & registers all slash commands.
+ * Uses the premium Logger for all output.
+ */
+const { readdirSync } = require('fs');
+const Logger          = require(`${process.cwd()}/utils/logger`);
+
 module.exports = async (bot) => {
   try {
-    let amount = 0;
+    Logger.divider('Loading Commands');
+
+    let amount               = 0;
     const slashCommandsArray = [];
-    readdirSync(`${process.cwd()}/commands/`).forEach((dir) => {
-      const slashCommands = readdirSync(`${process.cwd()}/commands/${dir}/`).filter((file) => file.endsWith(".js"));
-      for (let file of slashCommands) {
-        const pull = require(`${process.cwd()}/commands/${dir}/${file}`);
-        if (pull.name) {
-          bot.commands.set(pull.name, pull);
-          if (["MESSAGE", "USER"].includes(pull.type)) delete pull.description;
-          slashCommandsArray.push(pull)
-          amount++
-        } else {
-          try {
-            console.log(clc.redBright(`Slash Command Not Loaded: ${file}`))
-          } catch (e){
-            console.log(e)
+    const seenNames          = new Set();
+    const failed             = [];
+    const skipped            = [];
+
+    readdirSync(`${process.cwd()}/commands/`).forEach(dir => {
+      const files = readdirSync(`${process.cwd()}/commands/${dir}/`)
+        .filter(f => f.endsWith('.js'));
+
+      for (const file of files) {
+        try {
+          const pull = require(`${process.cwd()}/commands/${dir}/${file}`);
+
+          if (!pull.name) {
+            // No name exported — intentionally skipped (e.g. blacklist.js stub)
+            Logger.debug('CmdLoader', `No name exported: ${dir}/${file} — skipped`);
+            continue;
           }
-          continue;
+
+          // Overwrite Map so last-loaded wins
+          bot.commands.set(pull.name, pull);
+          if (['MESSAGE', 'USER'].includes(pull.type)) delete pull.description;
+
+          if (seenNames.has(pull.name)) {
+            Logger.warn('CmdLoader', `Duplicate name "${pull.name}" — ${file} will NOT be registered with Discord`);
+            skipped.push(pull.name);
+          } else {
+            seenNames.add(pull.name);
+            slashCommandsArray.push(pull);
+            Logger.cmd(pull.name, `Loaded  ${dir}/${file}`);
+          }
+          amount++;
+        } catch (e) {
+          failed.push(`${dir}/${file}`);
+          Logger.error('CmdLoader', `Failed to load ${dir}/${file}`, e);
         }
       }
     });
-    try {
-      const stringlength = 69;
-      console.log("\n")
-      console.log(clc.yellowBright(`     ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓`))
-      console.log(clc.yellowBright(`     ┃ `) + " ".repeat(-1 + stringlength - ` ┃ `.length) + clc.yellowBright("┃"))
-      console.log(clc.yellowBright(`     ┃ `) + clc.greenBright(`                   ${clc.cyanBright(amount)} Slash Commands Is Loaded!!`) + " ".repeat(-1 + stringlength - ` ┃ `.length - `                   ${amount} Slash Commands Is Loaded!!`.length) + clc.yellowBright("┃"))
-      console.log(clc.yellowBright(`     ┃ `) + " ".repeat(-1 + stringlength - ` ┃ `.length) + clc.yellowBright("┃"))
-      console.log(clc.yellowBright(`     ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛`)) + '\n'
-    } catch (e){
-      console.log(e)
-    }
-  
-    bot.on("ready", async () => {
-        try {
-          // For 1 Server Only👇🏻
-          // await bot.guilds.cache.get(bot.config.discord.support_server_id).commands.set(slashCommandsArray);
-          // For Global Server👇🏻
-          await bot.application.commands.set(slashCommandsArray);
-          //For remove all /commands on guilds
-          //await bot.application.commands.set([])
-        } catch (error) {
-          console.log(error)
-        }
-      })
+
+    Logger.divider();
+    Logger.loadedBox('Commands', slashCommandsArray.length);
+
+    if (skipped.length)  Logger.warn('CmdLoader', `${skipped.length} duplicate(s) skipped: ${skipped.join(', ')}`);
+    if (failed.length)   Logger.error('CmdLoader', `${failed.length} command(s) failed to load: ${failed.join(', ')}`);
+
+    // Register with Discord once bot is ready
+    bot.on('ready', async () => {
+      try {
+        Logger.info('CmdLoader', 'Registering commands with Discord API…');
+        await bot.application.commands.set(slashCommandsArray);
+        Logger.ok('CmdLoader', `${slashCommandsArray.length} slash commands registered globally ✅`);
+      } catch (e) {
+        Logger.error('CmdLoader', 'Failed to register commands with Discord API', e);
+      }
+    });
+
   } catch (e) {
-    console.log(e);
+    Logger.fatal('CmdLoader', 'Critical failure in command loader', e);
   }
-}
+};

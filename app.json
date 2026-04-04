@@ -1,15 +1,81 @@
 {
   "name": "Wave Network",
-  "description": "Ticket system bot🎫 worked with /commands and text commands, had perfect dashboard and website for easy setup on guild.",
-  "repository": "https://github.com/Persian-Caesar/Ticker-Boy",
-  "logo": "https://camo.githubusercontent.com/7a563d0e20e5ec7b41b2a8ae342ab4f1db3e77cd1c2875bcb9189979b208bb9f/68747470733a2f2f656e637279707465642d74626e302e677374617469632e636f6d2f696d616765733f713d74626e3a414e643947635342634f2d4b497641645375694c654d3375486652314c70326932375371696962382d7726757371703d43415522",
+  "description": "Premium SaaS-level Discord ticket system with ShardingManager, SLA tracking, auto-assignment, analytics, i18n, and rich staff tooling.",
+  "repository": "https://github.com/bloodwraith8851/Wave-Network",
+  "logo": "https://cdn.discordapp.com/avatars/1360664640908038355/wave-network-logo.png",
+  "website": "https://discord.gg/zeWbHEgNhB",
   "keywords": [
-    "advanced bot",
+    "discord",
+    "discord bot",
     "ticket bot",
-    "advanced ticket bot",
-    "advanced ticket system",
-    "buttons ticket system",
-    "Wave Network",
-    "Revenant"
+    "ticket system",
+    "support bot",
+    "wave network",
+    "saas",
+    "shard",
+    "analytics",
+    "sla"
+  ],
+  "env": {
+    "TOKEN": {
+      "description": "Your Discord bot token from the Discord Developer Portal.",
+      "required": true
+    },
+    "CLIENT_ID": {
+      "description": "Your bot's application/client ID from the Discord Developer Portal.",
+      "required": true
+    },
+    "PREFIX": {
+      "description": "Legacy command prefix (slash commands are primary).",
+      "value": "!",
+      "required": false
+    },
+    "OWNER_IDS": {
+      "description": "Comma-separated Discord user IDs of bot owners.",
+      "required": false
+    },
+    "SERVER_ID": {
+      "description": "Your support/home guild ID.",
+      "required": false
+    },
+    "SUPPORT_URL": {
+      "description": "Discord invite link for your support server.",
+      "required": false
+    },
+    "REPORT_CHANNEL_ID": {
+      "description": "Channel ID where user reports are posted.",
+      "required": false
+    },
+    "STATUS_CHANNEL_ID": {
+      "description": "Channel ID for bot status updates.",
+      "required": false
+    },
+    "ERROR_LOG_CHANNEL_ID": {
+      "description": "Channel ID where critical bot errors are posted.",
+      "required": false
+    },
+    "VIP_ROLE_IDS": {
+      "description": "Comma-separated role IDs for VIP access.",
+      "required": false
+    },
+    "WHITELIST_GUILD_IDS": {
+      "description": "Comma-separated guild IDs the bot is restricted to. Leave blank for all guilds.",
+      "required": false
+    },
+    "SHARD_COUNT": {
+      "description": "Override the auto-detected shard count. Leave blank to let Discord decide.",
+      "required": false
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
   ]
 }

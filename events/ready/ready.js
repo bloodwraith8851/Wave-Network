@@ -1,61 +1,66 @@
-const clc = require("cli-color");
-const Discord = require('discord.js');
+/**
+ * ready.js — Discord 'ready' client event
+ *
+ * Fires when the bot shard is fully connected and operational.
+ * Prints the beautiful readyPanel and sets rotating presence.
+ */
+'use strict';
+const { ActivityType } = require('discord.js');
+const Logger           = require(`${process.cwd()}/utils/logger`);
+
 module.exports = async (client) => {
-   let totalUsers = client.guilds.cache.map(guild => guild.memberCount).reduce((a, b) => a + b, 0);
-   let Guilds = client.guilds.cache.size;
-   setInterval(function Activitys(){
-      if(totalUsers > 1000){
-        totalUsers = `${(totalUsers/1000).toString().slice(0, -1)}K`;
-      }else{
-        totalUsers = totalUsers;
-      }
-      if(Guilds > 1000){
-        Guilds = `${(Guilds/1000).toString().slice(0, -1)}K`;
-      }else{
-        Guilds = Guilds;
-      }
-      let Presence = [ "dnd", "idle" ]; //can be: online | dnd | idle | offline
-      let PresencePower = Presence[Math.floor(Math.random() * Presence.length)]
-      let Activity = [
-        `/help`,
-        `/ticket create`,
-        `${Guilds} Servers`,
-        `${totalUsers} Users`
+  try {
+    const totalUsers   = client.guilds.cache.reduce((a, g) => a + (g.memberCount || 0), 0);
+    const guilds       = client.guilds.cache.size;
+    const mem          = Math.round(process.memoryUsage().rss / 1024 / 1024);
+    const shardId      = client.shard?.ids?.[0] ?? 0;
+    const totalShards  = client.shard?.count ?? 1;
+    const pkg          = require(`${process.cwd()}/package.json`);
+
+    Logger.readyPanel({
+      tag:         client.user.tag,
+      guilds,
+      users:       totalUsers.toLocaleString(),
+      commands:    client.commands.size,
+      ping:        client.ws.ping,
+      shardId,
+      totalShards,
+      version:     pkg.version,
+      djsVersion:  require('discord.js').version,
+      node:        process.version,
+      platform:    `${process.platform} ${process.arch}`,
+      memory:      mem,
+    });
+
+    // ── Rotating presence ──────────────────────────────────────────────────
+    const updatePresence = () => {
+      let userDisplay  = totalUsers > 1000 ? `${(totalUsers / 1000).toFixed(1)}K` : totalUsers;
+      let guildDisplay = guilds     > 1000 ? `${(guilds     / 1000).toFixed(1)}K` : guilds;
+
+      const activities = [
+        `/help  |  Wave Network`,
+        `/ticket  |  Wave Network`,
+        `${guildDisplay} Servers  |  Wave Network`,
+        `${userDisplay} Users  |  Wave Network`,
       ];
-      let ActivityPower = `${Activity[Math.floor(Math.random() * Activity.length)]} | Wave Network`;
-      let Display = [ 1, 3 ]; //can be: Discord.ActivityType.Competing = 5 or	Discord.ActivityType.Custom =	4 or Discord.ActivityType.Listening	= 2 or Discord.ActivityType.Playing =	0 or Discord.ActivityType.Streaming =	1 or Discord.ActivityType.Watching =	3
-      let DisplayPower = Display[Math.floor(Math.random() * Display.length)];
-      let URL = [ `https://www.twitch.tv/sobhan_srza` ];
-      let URLPower = URL[Math.floor(Math.random() * URL.length)];
-      client.user.setPresence({ 
-        activities: [{ 
-          name: ActivityPower, 
-          type: DisplayPower, 
-          url: URLPower 
-        }], 
-        status: PresencePower 
-      })
-   }, 60000)
-   
-try{
-   const stringlength = 69;
-   console.log("\n")
-   console.log(clc.greenBright(`     ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓`))
-   console.log(clc.greenBright(`     ┃ ` + " ".repeat(-1+stringlength-` ┃ `.length)+ "┃"))
-   console.log(clc.greenBright(`     ┃                    ` + clc.blueBright(`Discord Bot is online!`) + " ".repeat(-20+stringlength-` ┃ `.length-`Discord Bot is online!`.length)+ "┃"))
-   console.log(clc.greenBright(`     ┃           ` + ` /--/ ${clc.cyanBright(client.user.tag)} Is Now Online :) /--/ `+ " ".repeat(-1+stringlength-` ┃ `.length-` /--/ ${clc.cyanBright(client.user.tag)} Is Now Online :) /--/ `.length)+ "┃"))
-   console.log(clc.greenBright(`     ┃ ` + " ".repeat(-1+stringlength-` ┃ `.length)+ "┃"))
-   console.log(clc.greenBright(`     ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛`))
-   console.log("\n")
-   client.logger(
-      clc.blueBright(`Working Guilds: `) + clc.greenBright(`${Guilds.toLocaleString()} Servers`) + `\n` +
-      clc.blueBright(`Watching Users: `) + clc.greenBright(`${totalUsers.toLocaleString()} Users`) + `\n` +
-      clc.blueBright(`Commands: `) + clc.greenBright(`${client.commands.size}`) + `\n` +
-      clc.blueBright(`Source: `) + clc.greenBright(`v${require(`${process.cwd()}/package.json`).version}`) + `\n` +     
-      clc.blueBright(`Discord.js: `) + clc.greenBright(`v${Discord.version}`) + `\n` +
-      clc.blueBright(`Node.js: `) + clc.greenBright(`${process.version}`) + `\n` +
-      clc.blueBright(`Plattform: `) + clc.greenBright(`${process.platform} ${process.arch}`) + `\n` +
-      clc.blueBright(`Memory: `) + clc.greenBright(`${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)} MB / ${(process.memoryUsage().rss / 1024 / 1024).toFixed(2)} MB`)
-    );
-}catch{ /* */ }
-}
+      const statuses = ['dnd', 'idle'];
+
+      client.user.setPresence({
+        activities: [{
+          name: activities[Math.floor(Math.random() * activities.length)],
+          type: [ActivityType.Watching, ActivityType.Streaming][Math.floor(Math.random() * 2)],
+          url:  'https://www.twitch.tv/sobhan_srza',
+        }],
+        status: statuses[Math.floor(Math.random() * statuses.length)],
+      });
+    };
+
+    updatePresence();
+    setInterval(updatePresence, 60000);
+
+    Logger.ok('Ready', 'Presence rotation started');
+
+  } catch (e) {
+    Logger.error('Ready', 'Error in ready event handler', e);
+  }
+};

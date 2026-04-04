@@ -159,28 +159,40 @@ module.exports = {
         }
       } break;
       case "rename": {
-        if (interaction.channel.name.startsWith(`ticket-`) || interaction.channel.name === ticketName) {
-          let ticketName = interaction.options.getString("name");
-          if (!interaction.member.roles.cache.has(admin_role) && !interaction.member.permissions.has([PermissionsBitField.Flags.ManageChannels])) return errorMessage(client, interaction, "```js\nyou are not have permissions for use this.\nPermissions Need: \"ManageChannels\" \n```")
+        // BUG FIX #1: Was using new ButtonStyle() (not a constructor) and calling
+        // interaction.reply() twice — both cause immediate crashes.
+        // Now does a direct rename (matches ticket-rename-cmd.js behaviour).
+        const inTicket = interaction.channel.name.startsWith('ticket-') || interaction.channel.name === ticketName;
+        if (!inTicket) return errorMessage(client, interaction, `This command can only be used **inside a ticket channel**.`);
+        if (!interaction.member.roles.cache.has(admin_role) && !interaction.member.permissions.has(PermissionsBitField.Flags.ManageChannels))
+          return errorMessage(client, interaction, 'You need **Manage Channels** or the **ticket admin role** to rename tickets.');
 
-          interaction.reply({
-            embeds: [new EmbedBuilder().setAuthor({ name: `Requested by ` + interaction.user.tag, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) }).setTitle(client.emotes.rename + '| **Request To Change Ticket Name**').setColor(client.colors.none).setDescription("are you sure to change your ticket channel name??").setFooter({ text: "Change Name • " + client.embed.footerText, iconURL: interaction.guild.iconURL({ dynamic: true }) })],
-            components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setEmoji(client.emotes.rename).setLabel("Change Name").setCustomId("renameTicketTrue"), new ButtonStyle().setStyle(ButtonStyle.Danger).setEmoji(client.emotes.x).setLabel("Cancel").setCustomId("cancel"))]
-          })
-          await db.set(`guild_${interaction.guild.id}.ticket.rename_${interaction.channel.id}`, ticketName)
-          interaction.reply({
-            embeds: [embed],
-            components: [button]
-          })
-          setTimeout(async() => {
-            interaction.editReply({
-              components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('timeout').setEmoji(client.emotes.alert).setLabel('Time Is Up').setStyle(ButtonStyle.Primary).setDisabled(true))]
-            })
-            await db.delete(`guild_${interaction.guild.id}.ticket.rename_${interaction.channel.id}`)
-          }, 60 * 1000)
-        } else {
-          return errorMessage(client, interaction, `**My Friend, here is not a ticket channel please use this command in other channel**`)
-        }
+        const rawName = interaction.options.getString('name');
+        const newName = rawName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 90);
+        if (!newName) return errorMessage(client, interaction, 'Invalid channel name. Use letters, numbers and hyphens only.');
+
+        const oldName = interaction.channel.name;
+        await interaction.channel.setName(newName);
+
+        // Update owner lookup key
+        const ownerId = await db.get(`guild_${interaction.guild.id}.ticket.control_${interaction.channel.id}`);
+        if (ownerId) await db.set(`guild_${interaction.guild.id}.ticket.name_${ownerId}`, newName);
+
+        const { premiumEmbed } = require(`${process.cwd()}/functions/functions`);
+        const embed = premiumEmbed(client, {
+          title: `✏️  Ticket Renamed`,
+          description: `Channel renamed \`${oldName}\` → \`${newName}\` by ${interaction.user}.`,
+          color: '#8B5CF6'
+        }).setFooter({ text: `Wave Network  •  Ticket Management`, iconURL: interaction.guild.iconURL({ dynamic: true }) });
+
+        await interaction.reply({ embeds: [embed] });
+
+        const logId = await db.get(`guild_${interaction.guild.id}.modlog`);
+        const logCh = logId ? interaction.guild.channels.cache.get(logId) : null;
+        const { logMessage } = require(`${process.cwd()}/functions/functions`);
+        if (logCh) logMessage(client, interaction, logCh,
+          `${interaction.user.tag} renamed \`${oldName}\` → \`${newName}\`.`,
+          'Ticket Renamed', client.emotes.rename);
       } break;
       case "invite": {
         if (interaction.channel.name.startsWith(`ticket-`) || interaction.channel.name === ticketName) {

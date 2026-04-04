@@ -1,0 +1,68 @@
+{
+  "ticket": {
+    "create": {
+      "title": "New Ticket Created",
+      "description": "A staff member will be with you shortly. Please describe your issue in detail.",
+      "claimed": "This ticket has been claimed by {staff}.",
+      "assigned": "This ticket has been assigned to {staff}.",
+      "already_open": "You already have an open ticket: {channel}",
+      "cooldown": "You must wait {seconds} seconds before opening another ticket.",
+      "max_reached": "You have reached the maximum of {max} open tickets.",
+      "renamed": "Ticket renamed to `{name}`.",
+      "locked": "This ticket has been locked by {staff}.",
+      "unlocked": "This ticket has been unlocked by {staff}.",
+      "closed": "Ticket closed by {staff}.",
+      "deleted": "Ticket deleted.",
+      "reopened": "Ticket reopened by {staff}.",
+      "priority_set": "Priority set to **{priority}** by {staff}.",
+      "duplicate_warning": "⚠️ You may already have a similar open ticket: {channel}\n\nWould you like to continue creating a new one, or go to your existing ticket?"
+    },
+    "close": {
+      "confirm_title": "Close Ticket?",
+      "confirm_desc": "Are you sure you want to close this ticket?",
+      "reason_prompt": "Please provide a reason for closing this ticket.",
+      "transcript_sent": "A transcript has been sent to your DMs.",
+      "rating_prompt": "How would you rate your support experience?",
+      "closed_by": "Closed by {staff}"
+    }
+  },
+  "errors": {
+    "no_permission": "🔒 **Permission Denied** — You do not have permission to do this.",
+    "not_in_ticket": "This command can only be used inside a ticket channel.",
+    "user_not_found": "User not found.",
+    "invalid_input": "Invalid input. Please try again.",
+    "cooldown": "Please wait {seconds}s before using this command again.",
+    "generic": "An unexpected error occurred. Please try again."
+  },
+  "staff": {
+    "note": {
+      "added": "📝 Staff note added by {staff}.",
+      "title": "Staff Notes"
+    },
+    "claim": {
+      "success": "✅ Ticket claimed by {staff}.",
+      "already_claimed": "This ticket is already claimed by {staff}."
+    },
+    "shift": {
+      "on_title": "🟢 Shift Started",
+      "off_title": "🔴 Shift Ended",
+      "on_desc": "{staff} is now **on duty** and accepting tickets.",
+      "off_desc": "{staff} has gone **off duty**.",
+      "duration": "Shift duration: {duration}"
+    }
+  },
+  "rating": {
+    "1": "😞 Very Unsatisfied",
+    "2": "😕 Unsatisfied",
+    "3": "😐 Neutral",
+    "4": "😊 Satisfied",
+    "5": "😄 Very Satisfied"
+  },
+  "verify": {
+    "gate_title": "🔒 Verification Required",
+    "gate_desc": "You must verify yourself before opening a ticket.",
+    "button": "Click to Verify",
+    "success": "✅ You are now verified! You can open a ticket.",
+    "failed": "❌ Verification failed. Please try again."
+  }
+}

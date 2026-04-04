@@ -1,105 +1,151 @@
-//======== Packages ========
-require('dotenv').config()
-const { 
-  Client, 
+require('dotenv').config();
+
+const {
+  Client,
   Collection,
   IntentsBitField,
-  Partials
+  Partials,
 } = require('discord.js');
-const { 
-  QuickDB,
-  JSONDriver
-} = require(`quick.db`);
+const { QuickDB, JSONDriver } = require('quick.db');
 const config = require(`${process.cwd()}/storage/config.js`);
-const clc = require("cli-color");
-const fs = require('fs');
-const db = new QuickDB({ 
-  driver: new JSONDriver() 
-});
+const Logger = require(`${process.cwd()}/utils/logger`);
+const fs     = require('fs');
+
+
+// ── Shard identity ────────────────────────────────────────────────────────────
+const SHARD_ID         = process.env.SHARDING_ENABLED === 'true'
+  // When launched by ShardingManager, discord.js injects SHARDS env var
+  ? (process.env.SHARDS ?? 'N/A')
+  : 'standalone';
+const SHARDING_ENABLED = process.env.SHARDING_ENABLED === 'true';
+
+// ── Database ──────────────────────────────────────────────────────────────────
+// Each shard shares the same JSON file — quick.db uses file-level locking.
+// For production with many shards consider migrating to PostgreSQL or Redis.
+const db = new QuickDB({ driver: new JSONDriver() });
+
+// ── Discord Client ────────────────────────────────────────────────────────────
 const client = new Client({
-    restRequestTimeout: 15000,
-    intents: new IntentsBitField(32767),
-    partials: [
-       Partials.Message,
-       Partials.Channel,
-       Partials.User,
-       Partials.GuildMember
-    ],
-    shards: 'auto',
-    allowedMentions: {
-      parse: ["roles", "users", "everyone"],
-      repliedUser: false,
+  restRequestTimeout: 15000,
+  intents: new IntentsBitField(32767),
+  partials: [
+    Partials.Message,
+    Partials.Channel,
+    Partials.User,
+    Partials.GuildMember,
+  ],
+  // DO NOT set `shards` here — it is handled by the ShardingManager in shard.js
+  allowedMentions: {
+    parse:       ['roles', 'users', 'everyone'],
+    repliedUser: false,
+  },
+  ws: {
+    properties: {
+      browser: 'Discord Android',
+      os:      'Android',
     },
-    ws:{
-        properties: {
-            browser: "Discord Android",
-            os: "Android"
-        },
-    },
+  },
 });
-client.db = db;
-client.config = config;
-client.prefix = client.config.discord.prefix;
-client.token = client.config.discord.token;
-client.emotes = require(`${process.cwd()}/storage/emotes.json`);
-client.colors = require(`${process.cwd()}/storage/colors.json`);
-client.embed = require(`${process.cwd()}/storage/embed.json`);
+
+// ── Attach globals to client ──────────────────────────────────────────────────
+client.db         = db;
+client.config     = config;
+client.prefix     = config.discord.prefix;
+client.token      = config.discord.token;
+client.emotes     = require(`${process.cwd()}/storage/emotes.json`);
+client.colors     = require(`${process.cwd()}/storage/colors.json`);
+client.embed      = require(`${process.cwd()}/storage/embed.json`);
 client.categories = fs.readdirSync(`${process.cwd()}/commands`);
-client.commands = new Collection();
-client.cooldowns = new Collection();
+client.commands   = new Collection();
+client.cooldowns  = new Collection();
+client.shardId    = SHARD_ID;
 
-//======== Loading Starts =========
-let starts = fs.readdirSync(`${process.cwd()}/start`).filter(file => file.endsWith('.js'));
-let counter = 0;
-let stringlength = 69;
-starts.forEach((file) => {
+// ── Logger helper (shard-aware, via unified Logger) ──────────────────────────
+client.logger = (msg) => Logger.info(`Shard#${SHARD_ID}`, String(msg));
+
+
+// ── Global error handler ──────────────────────────────────────────────────────
+require(`${process.cwd()}/utils/errorHandler`).install(client);
+
+// ── Load start scripts ────────────────────────────────────────────────────────
+const starts  = fs.readdirSync(`${process.cwd()}/start`).filter(f => f.endsWith('.js'));
+let   counter = 0;
+const SL      = 69;
+
+starts.forEach(file => {
   require(`${process.cwd()}/start/${file}`)(client);
-  counter += 1;
+  counter++;
 });
-try {
-  console.log("\n")
-  console.log(clc.yellowBright(`     ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓`))
-  console.log(clc.yellowBright(`     ┃ `) + " ".repeat(-1 + stringlength - ` ┃ `.length) + clc.yellowBright("┃"))
-  console.log(clc.yellowBright(`     ┃ `) + clc.greenBright(`                   ${clc.magentaBright(counter)} Starts Is Loaded!!`) + " ".repeat(-1 + stringlength - ` ┃ `.length - `                   ${counter} Starts Is Loaded!!`.length) + clc.yellowBright("┃"))
-  console.log(clc.yellowBright(`     ┃ `) + " ".repeat(-1 + stringlength - ` ┃ `.length) + clc.yellowBright("┃"))
-  console.log(clc.yellowBright(`     ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛`))
-  console.log("\n")
-} catch { /* */ }
 
-//======== Login ========
-if(client.token){
-    client.login(client.token).catch(e => {
-     console.log(clc.red("The Bot Token You Entered Into Your Project Is Incorrect Or Your Bot's INTENTS Are OFF!\n" + e))
-   })
-  } else {
-   console.log(clc.red("Please Write Your Bot Token Opposite The Token In The config.js File In Your Project!"))   
-  }
+Logger.loadedBox('Start scripts', counter);
 
-//========== Auto-Services (start after ready) ==========
-client.once('clientReady', () => {
+
+// ── Login ─────────────────────────────────────────────────────────────────────
+if (client.token) {
+  Logger.boot('Logging into Discord…');
+  client.login(client.token).catch(e => {
+    Logger.fatal('Login', 'Failed to login — check TOKEN and ensure ALL Intents are enabled', e);
+    process.exit(1);
+  });
+} else {
+  Logger.fatal('Config', 'TOKEN not set — add TOKEN to your Railway Variables or .env file');
+  process.exit(1);
+}
+
+
+// ── Services: start ONCE per shard after bot is ready ────────────────────────
+client.once('ready', () => {
   try {
-    const autoCloseService   = require('./services/autoCloseService');
-    const reminderService    = require('./services/reminderService');
-    const weeklyReportService = require('./services/weeklyReportService');
-    autoCloseService.start(client);
-    reminderService.start(client);
-    weeklyReportService.start(client);
+    const shardGuilds = client.guilds.cache.size;
+    Logger.ok(`Shard#${SHARD_ID}`, `Logged in as ${client.user.tag}  •  Guilds: ${shardGuilds}  •  Ping: ${client.ws.ping}ms`);
+
+    // ── Core autonomous services ───────────────────────────────────────────
+    require('./services/autoCloseService').start(client);
+    require('./services/reminderService').start(client);
+    require('./services/weeklyReportService').start(client);
+
+    // ── Phase 4b services ──────────────────────────────────────────────────
+    require('./services/slaService').startSLAMonitor(client);
+    require('./services/escalationService').startEscalationMonitor(client);
+    require('./services/scheduledMessageService').init(client);
+
+    Logger.ok('Services', `All background services started ✅  [Shard#${SHARD_ID}]`);
+
+    // Report health to ShardingManager
+    try {
+      process.send?.({
+        _type:   'shard_ping',
+        shardId: SHARD_ID,
+        guilds:  shardGuilds,
+        ping:    client.ws.ping,
+      });
+    } catch { /* standalone mode */ }
+
   } catch (e) {
-    console.error('[AutoServices] Failed to start:', e.message);
+    Logger.error('Services', `Failed to start background services on Shard#${SHARD_ID}`, e);
   }
 });
 
-//========== Login Health Check (Windows-compatible) ==========
-// NOTE: process.kill(1) was replaced with process.exit(1).
-// On Windows, PID 1 does not exist → process.kill(1) throws ESRCH in an infinite loop.
+// ── Health check: 30s grace before enforcing login ───────────────────────────
+let _healthSkips  = 0;
+const GRACE_COUNT = 3;   // 3 × 10s = 30s grace
 setInterval(() => {
-  if (!client || !client.user) {
-    const msg = "The Client didn't login. Check TOKEN in .env and enable ALL Intents in the Discord Developer Portal.";
-    if (typeof client.logger === 'function') {
-      client.logger(msg);
-    } else {
-      console.log(clc.red(msg));
-    }
+  if (_healthSkips < GRACE_COUNT) { _healthSkips++; return; }
+  if (!client?.user) {
+    Logger.fatal(`Shard#${SHARD_ID}`, 'Client not logged in after grace period — check TOKEN and Intents. Exiting.');
     process.exit(1);
   }
 }, 10000);
+
+// ── Inter-shard keep-alive ping every 2 minutes ───────────────────────────────
+setInterval(() => {
+  if (!client?.user) return;
+  try {
+    process.send?.({
+      _type:   'shard_ping',
+      shardId: SHARD_ID,
+      guilds:  client.guilds.cache.size,
+      ping:    client.ws.ping,
+    });
+  } catch { /* standalone mode — no IPC */ }
+}, 2 * 60 * 1000);

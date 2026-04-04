@@ -1,65 +1,80 @@
 /**
- * autoReplyService.js — Rule-based FAQ auto-suggestion system
- * Matches ticket categories/messages to pre-written help suggestions.
+ * autoReplyService.js — Smart Auto-Reply / FAQ suggestion system
+ *
+ * Phase 4a Update: Rules are now configurable per-guild via /faq-rules.
+ * DB key: guild_<id>.auto_reply_rules → Array<{keyword, response, isRegex}>
+ *
+ * Fallback: if no DB rules exist, uses built-in default rules.
  */
 
-const FAQ_RULES = [
+// ── Default hardcoded rules (fallback when no guild-specific rules are set) ──
+const DEFAULT_RULES = [
   {
-    keywords: ['login', 'login issue', 'sign in', 'signin', 'access', 'account', 'password', 'forgot'],
-    response: 'Try resetting your password via the **Forgot Password** link. If locked out, share your username and we\'ll assist you.'
+    keyword: 'password',
+    response: '🔐 **Password Reset Help**\nPlease visit https://example.com/reset-password or contact an admin.',
+    isRegex: false,
   },
   {
-    keywords: ['payment', 'billing', 'charge', 'invoice', 'refund', 'subscription', 'purchase'],
-    response: 'For billing issues, please provide your **order/transaction ID**. Refund requests are processed within 3–5 business days.'
+    keyword: 'refund',
+    response: '💳 **Refund Policy**\nRefunds are processed within 3-5 business days. Please provide your order ID.',
+    isRegex: false,
   },
   {
-    keywords: ['bug', 'bug report', 'error', 'crash', 'broken', 'glitch', 'not working'],
-    response: 'Please describe the bug with **steps to reproduce** it and attach any screenshots or error messages.'
+    keyword: 'ban',
+    response: '🔨 **Ban Appeal**\nTo appeal your ban, please state your username, the reason for your ban, and why it should be lifted.',
+    isRegex: false,
   },
   {
-    keywords: ['ban appeal', 'ban', 'unban', 'appeal', 'muted', 'kicked', 'punish'],
-    response: 'Please provide your **username, the date of the ban**, and the reason shown. Appeals are reviewed within 48 hours.'
+    keyword: 'slow',
+    response: '⚙️ **Performance Issues**\nTry clearing your cache and restarting the application. If the problem persists, provide your system specs.',
+    isRegex: false,
   },
   {
-    keywords: ['partner', 'partnership', 'collab', 'collaboration', 'affiliate'],
-    response: 'Include your **server/community stats** and what kind of partnership you are proposing.'
+    keyword: 'error',
+    response: '🔍 **Reporting an Error**\nPlease share the full error message, steps to reproduce, and any relevant screenshots.',
+    isRegex: false,
   },
-  {
-    keywords: ['feature', 'suggestion', 'request', 'idea', 'add', 'improve'],
-    response: 'Describe your feature idea in detail. Our team reviews all suggestions weekly!'
-  },
-  {
-    keywords: ['general', 'other', 'other_issue', 'help', 'question'],
-    response: 'Please describe your issue clearly. A staff member will assist you shortly!'
-  }
 ];
 
 /**
- * Get a suggestion based on ticket category/reason and an optional message.
- * @param {string} category — ticket reason/category label
- * @param {string} [message=''] — optional user message for deeper matching
- * @returns {string|null}
+ * Check a message against guild auto-reply rules and return a matching response.
+ * @param {object} db
+ * @param {string} guildId
+ * @param {string} content — message content to check
+ * @returns {Promise<string|null>} matching response text, or null
  */
-function getSuggestion(category = '', message = '') {
-  const combined = `${category} ${message}`.toLowerCase();
+async function checkAutoReply(db, guildId, content) {
+  try {
+    // Load guild-specific rules first
+    let rules = (await db.get(`guild_${guildId}.auto_reply_rules`)) || [];
 
-  for (const rule of FAQ_RULES) {
-    if (rule.keywords.some(k => combined.includes(k))) {
-      return rule.response;
+    // Fall back to defaults if no guild rules configured
+    if (!rules.length) rules = DEFAULT_RULES;
+
+    const lower = content.toLowerCase();
+
+    for (const rule of rules) {
+      let matched = false;
+      if (rule.isRegex) {
+        try {
+          const regexMatch = rule.keyword.match(/^\/(.+)\/([gimsuy]*)$/);
+          const pattern = regexMatch ? regexMatch[1] : rule.keyword;
+          const flags   = regexMatch ? regexMatch[2] : 'i';
+          matched = new RegExp(pattern, flags).test(content);
+        } catch {
+          // Invalid regex — skip
+        }
+      } else {
+        matched = lower.includes(rule.keyword.toLowerCase());
+      }
+
+      if (matched) return rule.response;
     }
+
+    return null;
+  } catch {
+    return null;
   }
-  return null;
 }
 
-/**
- * Get all available FAQ topics as a list.
- */
-function getFAQList() {
-  return FAQ_RULES.map((r, i) => ({
-    index: i + 1,
-    keywords: r.keywords.slice(0, 3),
-    response: r.response.slice(0, 80) + '...'
-  }));
-}
-
-module.exports = { getSuggestion, getFAQList };
+module.exports = { checkAutoReply, DEFAULT_RULES };
