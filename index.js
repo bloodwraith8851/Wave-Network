@@ -6,7 +6,7 @@ const {
   GatewayIntentBits,
   Partials,
 } = require('discord.js');
-const { QuickDB } = require('quick.db');
+const { QuickDB, JSONDriver } = require('quick.db');
 const config = require(`${process.cwd()}/storage/config.js`);
 const Logger = require(`${process.cwd()}/utils/logger`);
 const fs     = require('fs');
@@ -20,9 +20,10 @@ const SHARD_ID         = process.env.SHARDING_ENABLED === 'true'
 const SHARDING_ENABLED = process.env.SHARDING_ENABLED === 'true';
 
 // ── Database ──────────────────────────────────────────────────────────────────
-// Migrated from JSONDriver to default SqliteDriver to support WAL (Write-Ahead Logging)
-// This is strictly required to prevent SQLITE_BUSY crashes when running multiple Shards dynamically.
-const db = new QuickDB();
+// Note: JSONDriver is a zero-dependency local storage fallback.
+const db = new QuickDB({ 
+  driver: new JSONDriver('database.json') 
+});
 
 // ── Discord Client ────────────────────────────────────────────────────────────
 const client = new Client({
