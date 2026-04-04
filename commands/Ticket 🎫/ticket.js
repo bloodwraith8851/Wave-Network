@@ -309,8 +309,8 @@ module.exports = {
           })
         await interaction.awaitModalSubmit({ time: time }).then(async(collect)=>{
             try{
-              if(!collect.guild.id === interaction.guild.id) return;
-          if(!collect.user.id === interaction.user.id) return errorMessage(client, collect, `This message only for ${collect.user} and you can't use it.`)
+              if (collect.guild.id !== interaction.guild.id) return;
+              if (collect.user.id !== interaction.user.id) return errorMessage(client, collect, `This message is only for ${interaction.user} and you cannot use it.`)
       if(collect.isModalSubmit()){
         if(collect.customId === 'ticket_modal'){
           let title = collect.fields.getTextInputValue('ticket_title')
