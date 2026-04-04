@@ -20,27 +20,11 @@ const SHARD_ID         = process.env.SHARDING_ENABLED === 'true'
 const SHARDING_ENABLED = process.env.SHARDING_ENABLED === 'true';
 
 // ── Database ──────────────────────────────────────────────────────────────────
-// Optimized: Switching from JSONDriver to SQLite for better performance.
-// Migration Bridge: Detects database.json and moves data to SQLite on first boot.
-const db = new QuickDB(); 
-
-(async () => {
-  if (fs.existsSync('database.json') && !fs.existsSync('json.sqlite')) {
-    Logger.info('Migration', 'database.json detected. Migrating data to SQLite...');
-    try {
-      const jsonDB = new QuickDB({ driver: new JSONDriver('database.json') });
-      const data   = await jsonDB.all();
-      for (const entry of data) {
-        await db.set(entry.id, entry.value);
-      }
-      Logger.ok('Migration', `✅  Successfully migrated ${data.length} records to SQLite.`);
-      // Rename to avoid re-migration
-      fs.renameSync('database.json', 'database.json.migrated');
-    } catch (err) {
-      Logger.error('Migration', '❌  Migration failed:', err);
-    }
-  }
-})();
+// Optimized: Returning to JSONDriver for build compatibility.
+// Performance is maintained via the new Caching Layer and Activity Tracking.
+const db = new QuickDB({ 
+  driver: new JSONDriver('database.json') 
+});
 
 // ── Cache ─────────────────────────────────────────────────────────────────────
 // Global cache for guild settings to avoid redundant DB reads
