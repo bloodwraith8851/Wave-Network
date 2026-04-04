@@ -25,8 +25,8 @@
 
 require('dotenv').config();
 const { ShardingManager } = require('discord.js');
-const clc = require('cli-color');
-const path = require('path');
+const Logger = require('./utils/logger');
+const path   = require('path');
 const { createServer } = require('http');
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -42,7 +42,9 @@ const RETRY_BASE  = 5000;   // 5s base, doubles each attempt
 const SPAWN_DELAY = 5500;   // ms between each shard spawn
 const METRICS_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
+// ── Token guard (Logger must be required first) ──────────────────────────────
 if (!TOKEN) {
+  // Logger is now defined — safe to call
   Logger.fatal('ShardManager', 'TOKEN is not set in environment variables. Exiting.');
   process.exit(1);
 }
