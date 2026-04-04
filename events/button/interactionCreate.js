@@ -13,8 +13,7 @@ const {
   ModalBuilder,
   TextInputStyle,
   TextInputBuilder,
-  PermissionsBitField,
-  StringSelectMenuBuilder
+  PermissionsBitField
 } = require('discord.js');
 const {
   errorMessage,

@@ -7,4 +7,5 @@
  * This file exports nothing so the event loader skips it cleanly.
  * Do NOT delete — keeping it prevents accidental re-creation.
  */
-// No export — loader skips files that export nothing callable.
+// No-op export for deprecated event.
+module.exports = async () => {};
