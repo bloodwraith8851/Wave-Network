@@ -92,7 +92,7 @@ module.exports = {
       if (!list.length) {
         return interaction.reply({
           embeds: [premiumEmbed(client, { title: '📋  Canned Responses', description: 'No canned responses saved yet.\n\nUse `/canned add <name> <content>` to create one.', color: '#6B7280' })],
-          ephemeral: true,
+          flags: 64,
         });
       }
       const lines = list.map((r, i) => `\`${String(i+1).padStart(2)}\`  **${r.name}** — ${r.content.slice(0, 60)}${r.content.length > 60 ? '…' : ''}`);

@@ -91,7 +91,7 @@ module.exports = {
           description: descriptions[mode],
           color: mode === 'none' ? '#6B7280' : '#10B981',
         }).setFooter({ text: 'Wave Network  •  Verification', iconURL: interaction.guild.iconURL({ dynamic: true }) })],
-        ephemeral: true,
+        flags: 64,
       });
     }
 
@@ -121,7 +121,7 @@ module.exports = {
       );
 
       await interaction.channel.send({ embeds: [embed], components: [row] });
-      return interaction.reply({ content: '✅ Verification panel posted!', ephemeral: true });
+      return interaction.reply({ content: '✅ Verification panel posted!', flags: 64 });
     }
 
     // ── CHECK ─────────────────────────────────────────────────────────────────
@@ -180,7 +180,7 @@ module.exports = {
         .setFooter({ text: 'Wave Network  •  Verification', iconURL: interaction.guild.iconURL({ dynamic: true }) })
         .setTimestamp();
 
-      return interaction.reply({ embeds: [embed], ephemeral: true });
+      return interaction.reply({ embeds: [embed], flags: 64 });
     }
   },
 };

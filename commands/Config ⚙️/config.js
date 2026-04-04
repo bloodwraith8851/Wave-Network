@@ -110,7 +110,7 @@ module.exports = {
         const ch   = interaction.guild.channels.cache.get(chId);
         if (!ch) return errorMessage(client, interaction, 'Invalid channel. Mention a valid channel.');
         await db.set(`guild_${gid}.suggest_channel`, chId);
-        return interaction.reply({ embeds: [premiumEmbed(client, { title: '✅  Config Updated', description: `Suggestion channel set to ${ch}.`, color: '#10B981' })], ephemeral: true });
+        return interaction.reply({ embeds: [premiumEmbed(client, { title: '✅  Config Updated', description: `Suggestion channel set to ${ch}.`, color: '#10B981' })], flags: 64 });
       }
 
       const numMap = {
@@ -123,7 +123,7 @@ module.exports = {
         const num = parseInt(value);
         if (isNaN(num) || num < 0) return errorMessage(client, interaction, 'Value must be a non-negative number.');
         await db.set(numMap[key], num);
-        return interaction.reply({ embeds: [premiumEmbed(client, { title: '✅  Config Updated', description: `**${key}** set to \`${num}\`.`, color: '#10B981' })], ephemeral: true });
+        return interaction.reply({ embeds: [premiumEmbed(client, { title: '✅  Config Updated', description: `**${key}** set to \`${num}\`.`, color: '#10B981' })], flags: 64 });
       }
     }
   }

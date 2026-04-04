@@ -41,7 +41,7 @@ module.exports = {
     const totalShards = getShardCount(client);
 
     // First reply to get API round-trip time
-    await interaction.reply({ embeds: [new EmbedBuilder().setColor('#6B7280').setDescription('`🏓 Measuring…`')], ephemeral: true });
+    await interaction.reply({ embeds: [new EmbedBuilder().setColor('#6B7280').setDescription('`🏓 Measuring…`')], flags: 64 });
 
     const apiPing  = Date.now() - sentAt;
     const avgPing  = await getAveragePing(client);

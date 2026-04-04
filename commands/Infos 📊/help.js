@@ -76,11 +76,11 @@ module.exports = {
     // ── /help <command> — single command detail ───────────────────────────
     if (commandName) {
       const cmd = client.commands.get(commandName.toLowerCase());
-      if (!cmd) return interaction.reply({ content: `❌  \`/${commandName}\` is not a recognised command. Use \`/help\` to browse.`, ephemeral: true });
+      if (!cmd) return interaction.reply({ content: `❌  \`/${commandName}\` is not a recognised command. Use \`/help\` to browse.`, flags: 64 });
       if (cmd.category === 'Owner 👑' && !isOwner) return errorMessage(client, interaction, 'You do not have permission to view this command.');
 
       const cm = client.application.commands.cache.find(c => c.name === cmd.name);
-      if (!cm) return interaction.reply({ content: `❌  Command not yet synced with Discord. Please wait a moment.`, ephemeral: true });
+      if (!cm) return interaction.reply({ content: `❌  Command not yet synced with Discord. Please wait a moment.`, flags: 64 });
 
       const opts    = cm.options || [];
       const hasSubs = opts.some(o => o.type === ApplicationCommandOptionType.Subcommand || o.type === 1);
@@ -215,7 +215,7 @@ module.exports = {
 
     collector.on('collect', async m => {
       if (m.user.id !== interaction.user.id) {
-        return m.reply({ content: `❌  Only ${interaction.user} can use this menu.`, ephemeral: true });
+        return m.reply({ content: `❌  Only ${interaction.user} can use this menu.`, flags: 64 });
       }
       if (m.isButton() && m.customId === 'home_page') {
         return m.update({ embeds: [help], components: makeComponents(true) });

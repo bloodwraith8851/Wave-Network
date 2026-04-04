@@ -171,7 +171,7 @@ module.exports = {
             description: 'No shift history recorded yet.',
             color: '#6B7280',
           })],
-          ephemeral: true,
+          flags: 64,
         });
       }
 
@@ -193,7 +193,7 @@ module.exports = {
           ])
           .setThumbnail(target.displayAvatarURL({ dynamic: true }))
           .setFooter({ text: `Wave Network  •  Shift Tracker  •  Last 10 shown`, iconURL: interaction.guild.iconURL({ dynamic: true }) })],
-        ephemeral: true,
+        flags: 64,
       });
     }
   },

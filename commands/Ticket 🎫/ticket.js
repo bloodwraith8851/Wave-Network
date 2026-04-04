@@ -230,11 +230,11 @@ module.exports = {
           })
           await db.set(`guild_${interaction.guild.id}.ticket.new_member_${interaction.channel.id}`, member.id)
           setTimeout(async() => {
-            interaction.editReply({
-              components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('timeout').setEmoji(client.emotes.alert).setLabel('Time Is Up').setStyle(ButtonStyle.Primary).setDisabled(true))]
-            }).catch(() => null);
-            await db.delete(`guild_${interaction.guild.id}.ticket.new_member_${interaction.channel.id}`)
-          }, 60 * 1000)
+          interaction.editReply({
+            components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('timeout').setEmoji(client.emotes.alert).setLabel('Time Is Up').setStyle(ButtonStyle.Primary).setDisabled(true))]
+          }).catch(() => null);
+          await db.delete(`guild_${interaction.guild.id}.ticket.new_member_${interaction.channel.id}`).catch(() => null);
+        }, 60 * 1000)
 
         } else {
           errorMessage(client, interaction, `**My Friend, here is not a ticket channel please use this command in other channel**`)
@@ -271,12 +271,13 @@ module.exports = {
           flags: 64,
           embeds: [new EmbedBuilder().setFooter({ text: `Setup Ticket • Requested by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) }).setTitle(`${client.emotes.setup}| **Ticket System Setting**`).setColor(client.colors.none).setDescription(`**setup your guild ticket system in ${channel} with default or customize.**`).setThumbnail(interaction.guild.iconURL({ dynamic: true }))],
           components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('ticket_default').setEmoji(client.emotes.system).setLabel("Setup Ticket To Default").setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId('ticket_setup_custom').setEmoji(client.emotes.hamer).setLabel("Setup Ticket To Customize").setStyle(ButtonStyle.Success)), new ActionRowBuilder().addComponents([new ButtonBuilder().setStyle(ButtonStyle.Link).setEmoji(client.emotes.help).setLabel("Support").setURL(client.config.discord.server_support)])],
-          withResponse: true
+          fetchReply: true
         }).then(async(msg)=>{
         let time = 120000;
-        await msg.createMessageComponentCollector({ time: time }).on('collect', async (collect)=>{
-          if(!collect.guild.id === interaction.guild.id) return;
-          if(!collect.user.id === interaction.user.id){
+        const collector = msg.createMessageComponentCollector({ time: time });
+        collector.on('collect', async (collect)=>{
+          if(collect.guild.id !== interaction.guild.id) return;
+          if(collect.user.id !== interaction.user.id){
             return errorMessage(client, collect, `**${client.emotes.error}| This component only for ${interaction.user} and you can't use it.\nuse "\`</ticket setup:${client.application.commands.cache.find(c => c.name === "ticket").id}>\`" for setup the ticket system**`)
           }
           if(collect.isButton()){

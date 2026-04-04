@@ -111,7 +111,7 @@ module.exports = {
             description: 'No notes on this ticket yet.\n\nAdd one with `/note add <text>`.',
             color: '#6B7280',
           })],
-          ephemeral: true,
+          flags: 64,
         });
       }
 

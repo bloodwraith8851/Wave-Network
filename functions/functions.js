@@ -139,7 +139,7 @@ async function errorMessage(client, interaction, error) {
     )
   ];
 
-  const payload = { embeds: [embed], components, flags: MessageFlags.Ephemeral };
+  const payload = { embeds: [embed], components, flags: 64 };
 
   // ── Safe reply: handles deferred, already-replied, and expired interactions ──
   try {

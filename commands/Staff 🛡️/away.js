@@ -43,6 +43,6 @@ module.exports = {
       color: newAway ? '#8B5CF6' : '#10B981'
     }).setFooter({ text: `Wave Network  •  Staff Away System`, iconURL: interaction.guild.iconURL({ dynamic: true }) });
 
-    return interaction.reply({ embeds: [embed], ephemeral: true });
+    return interaction.reply({ embeds: [embed], flags: 64 });
   }
 };
