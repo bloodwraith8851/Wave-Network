@@ -232,8 +232,16 @@ const healthServer = createServer(async (req, res) => {
   res.end('Not Found');
 });
 
-healthServer.listen(HEALTH_PORT, () => {
-  log('ok', `Health endpoint: http://localhost:${HEALTH_PORT}/health`);
+healthServer.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    log('warn', `Port ${HEALTH_PORT} is in use. Railway might have left a ghost process.`);
+  } else {
+    log('error', `HealthServer Error: ${err.message}`);
+  }
+});
+
+healthServer.listen(HEALTH_PORT, '0.0.0.0', () => {
+  log('ok', `Health endpoint: http://0.0.0.0:${HEALTH_PORT}/health`);
 });
 
 // ── IPC: broadcast utility (exported for optional management scripts) ─────────
