@@ -13,7 +13,7 @@ const {
   PermissionsBitField
 } = require('discord.js');
 const { logMessage, errorMessage, premiumEmbed } = require(`${process.cwd()}/functions/functions`);
-const { createTicket, hasOpenTicket }            = require(`${process.cwd()}/services/ticketService`);
+const { createTicket, hasOpenTicket, isStaff }            = require(`${process.cwd()}/services/ticketService`);
 const { runAllChecks, setCooldown }              = require(`${process.cwd()}/services/antiAbuseService`);
 
 module.exports = async (client, interaction) => {
@@ -140,4 +140,35 @@ module.exports = async (client, interaction) => {
       }).setFooter({ text: `${interaction.guild.name}  •  Wave Network`, iconURL: interaction.guild.iconURL({ dynamic: true }) })]
     }).catch(() => null);
   }
-};
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // DELETE NOTE CONFIRMATION
+  // ─────────────────────────────────────────────────────────────────────────
+  if (interaction.customId === 'delete_note_confirm') {
+    const [targetUserId, index] = interaction.values[0].split('_');
+    const idx = parseInt(index);
+    
+    // Permission check
+    const staff = await isStaff(db, interaction.guild, interaction.member);
+    if (!staff) return errorMessage(client, interaction, 'You need **Staff Roles** to delete user notes.');
+
+    const noteKey = `guild_${interaction.guild.id}.user_notes_${targetUserId}`;
+    const notes   = (await db.get(noteKey)) || [];
+
+    if (idx < 0 || idx >= notes.length) {
+      return interaction.reply({ content: '❌ Note no longer exists.', flags: 64 });
+    }
+
+    const removed = notes.splice(idx, 1)[0];
+    await db.set(noteKey, notes);
+
+    return interaction.reply({
+      embeds: [premiumEmbed(client, {
+        title: '🗑️  Note Deleted',
+        description: `Successfully removed a note for <@${targetUserId}>.\n\n**Removed Note:**\n> ${removed.text.slice(0, 500)}`,
+        color: '#EF4444'
+      }).setFooter({ text: `Action by ${interaction.user.tag}` })],
+      flags: 64
+    });
+  }
+}

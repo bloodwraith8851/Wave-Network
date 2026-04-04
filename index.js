@@ -26,10 +26,6 @@ const db = new QuickDB({
   driver: new JSONDriver('database.json') 
 });
 
-// ── Cache ─────────────────────────────────────────────────────────────────────
-// Global cache for guild settings to avoid redundant DB reads
-client.guildCache = new Map();
-
 // ── Discord Client ────────────────────────────────────────────────────────────
 const client = new Client({
   restRequestTimeout: 15000,
@@ -57,6 +53,10 @@ const client = new Client({
     },
   },
 });
+
+// ── Cache ─────────────────────────────────────────────────────────────────────
+// Global cache for guild settings to avoid redundant DB reads
+client.guildCache = new Map();
 
 // ── Attach globals to client ──────────────────────────────────────────────────
 client.db         = db;

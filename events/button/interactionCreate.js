@@ -13,7 +13,8 @@ const {
   ModalBuilder,
   TextInputStyle,
   TextInputBuilder,
-  PermissionsBitField
+  PermissionsBitField,
+  StringSelectMenuBuilder
 } = require('discord.js');
 const {
   errorMessage,
@@ -501,6 +502,32 @@ module.exports = async (client, interaction) => {
         )]
       });
       if (logsChannel) logMessage(client, interaction, logsChannel, `${interaction.user.tag} added ${txt} to ticket.`, 'Ticket Invte People', client.emotes.plus);
+    }
+
+    if (interaction.customId.startsWith('delete_note_list_')) {
+      const targetUserId = interaction.customId.split('_').slice(-1)[0];
+      const targetUser   = await client.users.fetch(targetUserId).catch(() => null);
+      if (!isStaff()) return errorMessage(client, interaction, '```js\nYou do not have permission.\nNeed: "ManageChannels"\n```');
+
+      const notes = await db.get(`guild_${guildId}.user_notes_${targetUserId}`) || [];
+      if (!notes.length) return interaction.reply({ content: '❌ No notes found for this user.', flags: 64 });
+
+      const options = notes.map((n, i) => ({
+        label: `Note #${i + 1} (${n.moderatorTag})`,
+        description: n.text.slice(0, 50),
+        value: `${targetUserId}_${i}` // targetUserId_index
+      }));
+
+      const menu = new StringSelectMenuBuilder()
+        .setCustomId('delete_note_confirm')
+        .setPlaceholder('Select a note to delete...')
+        .setOptions(options.slice(0, 25));
+
+      return interaction.reply({
+        content: `Select which note you want to delete for **${targetUser?.tag || targetUserId}**:`,
+        components: [new ActionRowBuilder().addComponents(menu)],
+        flags: 64
+      });
     }
 
     if (interaction.customId === 'canceladdmemberTicket') {
