@@ -56,7 +56,8 @@ module.exports = async (bot) => {
     if (failed.length)   Logger.error('CmdLoader', `${failed.length} command(s) failed to load: ${failed.join(', ')}`);
 
     // Register with Discord once bot is ready
-    bot.on('ready', async () => {
+    // Note: Discord.js v14 renamed 'ready' → 'clientReady'
+    bot.on('clientReady', async () => {
       try {
         Logger.info('CmdLoader', 'Registering commands with Discord API…');
         await bot.application.commands.set(slashCommandsArray);

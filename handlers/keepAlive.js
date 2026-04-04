@@ -1,25 +1,17 @@
-/**
- * keepAlive.js — Express health server for Railway
- *
- * Railway requires a running HTTP server to consider the deployment healthy.
- * It uses the PORT environment variable (automatically injected).
- *
- * Routes:
- *   GET /          → 200 "Wave Network is online"
- *   GET /health    → 200 JSON with bot stats (for Railway health check)
- *   GET /ping      → 200 "pong"
- *
- * This runs inside the BOT SHARD process (index.js), not the ShardingManager.
- * The ShardingManager (shard.js) has its OWN /health endpoint on HEALTH_PORT.
- *
- * Railway automatically sets PORT — never hardcode it.
- */
 const express = require('express');
-const clc     = require('cli-color');
+const Logger  = require(`${process.cwd()}/utils/logger`);
 
 module.exports = async (client) => {
   const app  = express();
   const port = parseInt(process.env.PORT || client.config?.source?.port || 3000);
+  const isSharded = process.env.SHARDING_ENABLED === 'true';
+
+  // When running under ShardingManager, shard.js already owns PORT with its own
+  // /health endpoint. Skip keepAlive to avoid EADDRINUSE → crash loop.
+  if (isSharded) {
+    Logger.info('keepAlive', `ShardingManager owns PORT ${port} — shard HTTP server skipped`);
+    return;
+  }
 
   app.use(express.json());
 
@@ -55,16 +47,22 @@ module.exports = async (client) => {
   // ── Ping ──────────────────────────────────────────────────────────────────
   app.get('/ping', (req, res) => res.json({ pong: true, ts: Date.now() }));
 
-  // ── Start listening ───────────────────────────────────────────────────────
-  app.listen(port, '0.0.0.0', () => {
-    const SL = 69;
-    console.log(
-      '\n' +
-      clc.yellowBright(`     ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓`) + '\n' +
-      clc.yellowBright(`     ┃ `) + ' '.repeat(-1 + SL - ` ┃ `.length) + clc.yellowBright('┃') + '\n' +
-      clc.yellowBright(`     ┃ `) + clc.greenBright(`         🌐  Health server listening on port ${port}`) + ' '.repeat(Math.max(0, -1 + SL - ` ┃ `.length - `         🌐  Health server listening on port ${port}`.length)) + clc.yellowBright('┃') + '\n' +
-      clc.yellowBright(`     ┃ `) + ' '.repeat(-1 + SL - ` ┃ `.length) + clc.yellowBright('┃') + '\n' +
-      clc.yellowBright(`     ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛`) + '\n'
-    );
+  // ── Start listening — catch port conflicts at server level ─────────────────
+  const server = app.listen(port, '0.0.0.0');
+
+  server.on('listening', () => {
+    Logger.ok('keepAlive', `🌐  Health server running on port ${port}`);
+    Logger.ok('keepAlive', `   GET http://0.0.0.0:${port}/health`);
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      // Port taken — this is expected when ShardManager is also running.
+      // Do NOT crash — just log and continue. The ShardManager /health covers Railway.
+      Logger.warn('keepAlive', `Port ${port} already in use — HTTP server skipped (ShardManager owns this port)`);
+    } else {
+      Logger.error('keepAlive', `HTTP server error (code: ${err.code})`, err);
+    }
   });
 };
+
