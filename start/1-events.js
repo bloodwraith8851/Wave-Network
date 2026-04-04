@@ -19,8 +19,10 @@ module.exports = async (bot) => {
 
       for (const file of files) {
         try {
+          const name = file.split('.')[0];
+          if (name === 'ready') continue; // Skip deprecated ready event to avoid v14+ warnings
+
           const event = require(`${process.cwd()}/events/${dir}/${file}`);
-          const name  = file.split('.')[0];
           bot.on(name, event.bind(null, bot));
           Logger.event(name, `Registered  ${dir}/${file}`);
           counter++;
