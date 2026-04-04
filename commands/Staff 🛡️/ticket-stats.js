@@ -39,9 +39,8 @@ module.exports = {
 
   run: async (client, interaction) => {
     const db        = client.db;
-    const adminRole = await db.get(`guild_${interaction.guild.id}.ticket.admin_role`);
-    const staff     = await isStaff(db, interaction.guild, interaction.member, adminRole);
-    if (!staff) return errorMessage(client, interaction, 'Only staff can view ticket statistics.');
+    const staff     = await isStaff(db, interaction.guild, interaction.member);
+    if (!staff) return errorMessage(client, interaction, 'You need **Manage Channels** or a **Staff Role** to view statistics.');
 
     await interaction.deferReply();
 

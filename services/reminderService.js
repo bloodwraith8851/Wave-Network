@@ -28,20 +28,20 @@ async function run(client) {
           const ownerId = await db.get(`guild_${guild.id}.ticket.control_${ch.id}`);
           if (!ownerId) continue;
 
-          const alreadyReminded = await db.get(`guild_${guild.id}.ticket.reminded_${ch.id}`);
+          // Use stored activity timestamp instead of fetching messages (MUCH FASTER)
+          const lastActivity = await db.get(`guild_${guild.id}.ticket.last_activity_at_${ch.id}`) || ch.createdTimestamp;
 
-          // Fetch last non-system message
-          const msgs = await ch.messages.fetch({ limit: 5 }).catch(() => null);
-          if (!msgs) continue;
-          const lastOwnerMsg = msgs.find(m => m.author.id === ownerId && !m.author.bot);
-          if (!lastOwnerMsg) continue;
-
-          const idleMs = Date.now() - lastOwnerMsg.createdTimestamp;
+          const idleMs = Date.now() - lastActivity;
           const remindMs = remindMin * 60 * 1000;
 
           if (idleMs >= remindMs && !alreadyReminded) {
             const adminRole = await db.get(`guild_${guild.id}.ticket.admin_role`);
-            const mention   = adminRole ? `<@&${adminRole}>` : '@here';
+            const modRole   = await db.get(`guild_${guild.id}.permissions.roles.moderator`);
+            const staffRole = await db.get(`guild_${guild.id}.permissions.roles.staff`);
+            
+            let roles = [adminRole, modRole, staffRole].filter(Boolean);
+            const mention = roles.length > 0 ? roles.map(r => `<@&${r}>`).join(' ') : '@here';
+            
             const claimer   = await db.get(`guild_${guild.id}.ticket.claimed_${ch.id}`);
             const pingTarget = claimer ? `<@${claimer}>` : mention;
 
@@ -50,7 +50,7 @@ async function run(client) {
           const closeSoon  = idleMin > remindMin * 2;
           const color      = urgent ? '#EF4444' : closeSoon ? '#F97316' : '#F59E0B';
           const urgLabel   = urgent ? '🔴 URGENT — ' : closeSoon ? '🟠 Action Needed — ' : '🟡 Reminder — ';
-          const lastActive = Math.floor(lastOwnerMsg.createdTimestamp / 1000);
+          const lastActive = Math.floor(lastActivity / 1000);
 
             await ch.send({
               content: pingTarget,
@@ -73,13 +73,7 @@ async function run(client) {
             await db.set(`guild_${guild.id}.ticket.reminded_${ch.id}`, Date.now());
           }
 
-          // Reset reminder when staff replies
-          if (alreadyReminded) {
-            const lastMsg = msgs.first();
-            if (lastMsg && lastMsg.author.id !== ownerId && !lastMsg.author.bot) {
-              await db.delete(`guild_${guild.id}.ticket.reminded_${ch.id}`);
-            }
-          }
+          // Removal logic is handled by setting last_activity_at on staff reply in messageCreate
         } catch { /* Skip */ }
       }
     }

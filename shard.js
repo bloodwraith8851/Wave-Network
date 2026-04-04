@@ -204,15 +204,15 @@ const healthServer = createServer(async (req, res) => {
       if (info.state !== 'ready') allReady = false;
     });
 
-    let totalGuilds = 0, avgPing = 0;
-    try {
-      const [guilds, pings] = await Promise.all([
-        manager.broadcastEval(c => c.guilds.cache.size),
-        manager.broadcastEval(c => c.ws.ping),
-      ]);
-      totalGuilds = guilds.reduce((a, b) => a + b, 0);
-      avgPing     = Math.round(pings.reduce((a, b) => a + b, 0) / pings.length);
-    } catch { /* */ }
+    let totalGuilds = 0, avgPing = 0, count = 0;
+    shardHealth.forEach(info => {
+      if (info.guild !== undefined) {
+        totalGuilds += info.guild;
+        avgPing += (info.ping || 0);
+        count++;
+      }
+    });
+    if (count > 0) avgPing = Math.round(avgPing / count);
 
     const body = JSON.stringify({
       status:      allReady ? 'ok' : 'degraded',

@@ -29,9 +29,8 @@ module.exports = {
 
   run: async (client, interaction) => {
     const db        = client.db;
-    const adminRole = await db.get(`guild_${interaction.guild.id}.ticket.admin_role`);
-    const staffCheck = await isStaff(db, interaction.guild, interaction.member, adminRole);
-    if (!staffCheck) return errorMessage(client, interaction, 'You need **Manage Channels** or the **ticket admin role** to transfer tickets.');
+    const staffCheck = await isStaff(db, interaction.guild, interaction.member);
+    if (!staffCheck) return errorMessage(client, interaction, 'You need **Manage Channels** or a **Staff Role** to transfer tickets.');
 
     const inTicket = await isTicketChannel(db, interaction.guild, interaction.channel);
     if (!inTicket) return errorMessage(client, interaction, 'This command can only be used **inside a ticket channel**.');
@@ -40,8 +39,8 @@ module.exports = {
     if (!target) return errorMessage(client, interaction, 'That user is not in this server.');
     if (target.id === interaction.user.id) return errorMessage(client, interaction, 'You cannot transfer the ticket to yourself.');
 
-    const targetIsStaff = await isStaff(db, interaction.guild, target, adminRole);
-    if (!targetIsStaff) return errorMessage(client, interaction, `${target} is not a staff member (needs **Manage Channels** or the admin role).`);
+    const targetIsStaff = await isStaff(db, interaction.guild, target);
+    if (!targetIsStaff) return errorMessage(client, interaction, `${target} is not a staff member (needs **Manage Channels** or a staff role).`);
 
     // Grant the new staff member access
     await interaction.channel.permissionOverwrites.edit(target.id, {

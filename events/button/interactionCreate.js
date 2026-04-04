@@ -23,6 +23,7 @@ const {
 } = require(`${process.cwd()}/functions/functions`);
 const transcriptService = require(`${process.cwd()}/services/transcriptService`);
 const analyticsService  = require(`${process.cwd()}/services/analyticsService`);
+const cache             = require(`${process.cwd()}/services/cacheService`);
 
 module.exports = async (client, interaction) => {
   try {
@@ -33,18 +34,33 @@ module.exports = async (client, interaction) => {
     const userId        = interaction.user.id;
     const channelId     = interaction.channel.id;
 
-    const ticketName       = await db.get(`guild_${guildId}.ticket.name_${userId}`);
-    const log              = await db.get(`guild_${guildId}.modlog`);
-    const logsChannel      = log ? interaction.guild.channels.cache.get(log) : null;
-    const admin_role_has   = await db.has(`guild_${guildId}.ticket.admin_role`);
-    const admin_role       = await db.get(`guild_${guildId}.ticket.admin_role`);
-    const ticket_menu_opt  = await db.get(`guild_${guildId}.ticket.menu_option`);
-    const ticket_menu_has  = await db.has(`guild_${guildId}.ticket.menu_option`);
-    const ticket_control   = await db.get(`guild_${guildId}.ticket.control_${channelId}`);
+    const [
+      ticketName,
+      log,
+      admin_role,
+      mod_role,
+      staff_role,
+      ticket_menu_opt,
+      ticket_menu_has,
+      ticket_control
+    ] = await Promise.all([
+      db.get(`guild_${guildId}.ticket.name_${userId}`),
+      cache.get(client, guildId, 'modlog'),
+      cache.get(client, guildId, 'ticket.admin_role'),
+      cache.get(client, guildId, 'permissions.roles.moderator'),
+      cache.get(client, guildId, 'permissions.roles.staff'),
+      db.get(`guild_${guildId}.ticket.menu_option`),
+      db.has(`guild_${guildId}.ticket.menu_option`),
+      db.get(`guild_${guildId}.ticket.control_${channelId}`)
+    ]);
+
+    const logsChannel = log ? interaction.guild.channels.cache.get(log) : null;
 
     // ── Staff permission helper ──────────────────────────────────────────────
     const isStaff = () =>
-      (admin_role_has && interaction.member.roles.cache.has(admin_role)) ||
+      (admin_role && interaction.member.roles.cache.has(admin_role)) ||
+      (mod_role && interaction.member.roles.cache.has(mod_role)) ||
+      (staff_role && interaction.member.roles.cache.has(staff_role)) ||
       interaction.member.permissions.has(PermissionsBitField.Flags.ManageChannels);
 
     // ── Channel permission sets ──────────────────────────────────────────────
@@ -64,10 +80,20 @@ module.exports = async (client, interaction) => {
           { id: interaction.guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] }
         ]
       };
-      if (admin_role_has) {
+      if (admin_role) {
         perms.close.push({ id: admin_role, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
         perms.open.push({ id: admin_role, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
         perms.invite.push({ id: admin_role, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
+      }
+      if (mod_role && mod_role !== admin_role) {
+        perms.close.push({ id: mod_role, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
+        perms.open.push({ id: mod_role, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
+        perms.invite.push({ id: mod_role, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
+      }
+      if (staff_role && staff_role !== admin_role && staff_role !== mod_role) {
+        perms.close.push({ id: staff_role, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
+        perms.open.push({ id: staff_role, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
+        perms.invite.push({ id: staff_role, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
       }
       return perms[type] || [];
     };
@@ -459,7 +485,7 @@ module.exports = async (client, interaction) => {
         { id: newMemberId, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] },
         { id: interaction.guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] }
       ];
-      if (admin_role_has) invitePerms.push({ id: admin_role, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
+      if (admin_role) invitePerms.push({ id: admin_role, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
 
       await interaction.channel.permissionOverwrites.set(invitePerms);
       const txt = `<@${newMemberId}>`;

@@ -59,6 +59,8 @@ try {
     const note      = interaction.fields.getTextInputValue('close_note')   || null;
     const ownerId   = await db.get(`guild_${guildId}.ticket.control_${channelId}`);
     const adminRole = await db.get(`guild_${guildId}.ticket.admin_role`);
+    const modRole   = await db.get(`guild_${guildId}.permissions.roles.moderator`);
+    const staffRole = await db.get(`guild_${guildId}.permissions.roles.staff`);
     const log       = await db.get(`guild_${guildId}.modlog`);
     const logsCh    = log ? interaction.guild.channels.cache.get(log) : null;
 
@@ -68,6 +70,8 @@ try {
     const perms = [{ id: interaction.guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] }];
     if (ownerId) perms.push({ id: ownerId, deny: [PermissionsBitField.Flags.ViewChannel] });
     if (adminRole) perms.push({ id: adminRole, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
+    if (modRole && modRole !== adminRole) perms.push({ id: modRole, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
+    if (staffRole && staffRole !== adminRole && staffRole !== modRole) perms.push({ id: staffRole, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
     await interaction.channel.permissionOverwrites.set(perms).catch(() => null);
 
     // Rich closed embed

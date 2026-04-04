@@ -69,9 +69,15 @@ module.exports = {
     const THRESHOLD = 3;
     if (allWarns.length >= THRESHOLD) {
       const adminRole = await db.get(`guild_${interaction.guild.id}.ticket.admin_role`);
-      if (adminRole && logCh) {
+      const modRole   = await db.get(`guild_${interaction.guild.id}.permissions.roles.moderator`);
+      const staffRole = await db.get(`guild_${interaction.guild.id}.permissions.roles.staff`);
+      
+      let roles = [adminRole, modRole, staffRole].filter(Boolean);
+      const mention = roles.length > 0 ? roles.map(r => `<@&${r}>`).join(' ') : '@here';
+
+      if (logCh) {
         await logCh.send({
-          content: `<@&${adminRole}>`,
+          content: mention,
           embeds: [premiumEmbed(client, {
             title: `🚨  Warning Threshold Reached`,
             description: `${target} has reached **${allWarns.length} warnings**.\nConsider taking further action!`,

@@ -4,9 +4,14 @@
  */
 
 const { ChannelType, PermissionsBitField, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { premiumEmbed, ticketControlRow } = require('../functions/functions');
-const analyticsService  = require('./analyticsService');
+const {
+  premiumEmbed,
+  errorMessage,
+} = require(`${process.cwd()}/functions/functions`);
+const cache = require('./cacheService');
+const Transcript = require('discord-html-transcripts');
 const autoReplyService  = require('./autoReplyService');
+const analyticsService  = require('./analyticsService');
 
 /**
  * Creates a ticket channel.
@@ -25,6 +30,8 @@ async function createTicket(client, interaction, category, panelId = null) {
   const cmd            = client.application?.commands?.cache?.find(c => c.name === 'ticket');
   const admin_role_has = await db.has(`guild_${guild.id}.ticket.admin_role`);
   const admin_role     = await db.get(`guild_${guild.id}.ticket.admin_role`);
+  const mod_role       = await db.get(`guild_${guild.id}.permissions.roles.moderator`);
+  const staff_role     = await db.get(`guild_${guild.id}.permissions.roles.staff`);
   const cat_has        = await db.has(`guild_${guild.id}.ticket.category`);
   const cat_id         = await db.get(`guild_${guild.id}.ticket.category`);
   const log_id         = await db.get(`guild_${guild.id}.modlog`);
@@ -75,9 +82,33 @@ async function createTicket(client, interaction, category, panelId = null) {
       deny: [PermissionsBitField.Flags.ViewChannel]
     }
   ];
-  if (admin_role_has) {
+  if (admin_role) {
     permOverwrites.push({
       id: admin_role,
+      allow: [
+        PermissionsBitField.Flags.SendMessages,
+        PermissionsBitField.Flags.ViewChannel,
+        PermissionsBitField.Flags.ReadMessageHistory,
+        PermissionsBitField.Flags.AttachFiles,
+        PermissionsBitField.Flags.EmbedLinks,
+      ]
+    });
+  }
+  if (mod_role && mod_role !== admin_role) {
+    permOverwrites.push({
+      id: mod_role,
+      allow: [
+        PermissionsBitField.Flags.SendMessages,
+        PermissionsBitField.Flags.ViewChannel,
+        PermissionsBitField.Flags.ReadMessageHistory,
+        PermissionsBitField.Flags.AttachFiles,
+        PermissionsBitField.Flags.EmbedLinks,
+      ]
+    });
+  }
+  if (staff_role && staff_role !== admin_role && staff_role !== mod_role) {
+    permOverwrites.push({
+      id: staff_role,
       allow: [
         PermissionsBitField.Flags.SendMessages,
         PermissionsBitField.Flags.ViewChannel,
@@ -182,6 +213,9 @@ async function createTicket(client, interaction, category, panelId = null) {
     await channel.send({ content: `<@${user.id}> Welcome! A staff member will assist you shortly. *(buttons failed to load — please refresh Discord)*` }).catch(() => null);
   }
 
+  // ── Set initial activity timestamp ────────────────────────────────────────
+  await db.set(`guild_${guild.id}.ticket.last_activity_at_${channel.id}`, Date.now());
+
   // ── log ───────────────────────────────────────────────────────────────────
   if (logsChannel) {
     const logEmbed = premiumEmbed(client, {
@@ -207,9 +241,20 @@ async function hasOpenTicket(db, guild, userId) {
 /**
  * Resolves whether a member has staff privileges.
  */
-async function isStaff(db, guild, member, adminRoleId) {
+async function isStaff(db, guild, member) {
   if (member.permissions.has(PermissionsBitField.Flags.ManageChannels)) return true;
-  if (adminRoleId && member.roles.cache.has(adminRoleId)) return true;
+  
+  // Use parallel fetching for roles
+  const [admin, mod, staff] = await Promise.all([
+    cache.get(member.client, guild.id, 'ticket.admin_role'),
+    cache.get(member.client, guild.id, 'permissions.roles.moderator'),
+    cache.get(member.client, guild.id, 'permissions.roles.staff')
+  ]);
+
+  if (admin && member.roles.cache.has(admin)) return true;
+  if (mod   && member.roles.cache.has(mod))   return true;
+  if (staff && member.roles.cache.has(staff)) return true;
+
   return false;
 }
 

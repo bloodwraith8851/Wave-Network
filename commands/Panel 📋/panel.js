@@ -18,6 +18,7 @@ const {
   PermissionsBitField
 } = require('discord.js');
 const { premiumEmbed, errorMessage } = require(`${process.cwd()}/functions/functions`);
+const { isStaff } = require(`${process.cwd()}/services/ticketService`);
 const crypto = require('crypto');
 
 module.exports = {
@@ -89,10 +90,8 @@ module.exports = {
     const guildKey = `guild_${interaction.guild.id}.panels`;
 
     // ─── Permission check ───────────────────────────────────────────────────
-    const adminRole = await db.get(`guild_${interaction.guild.id}.ticket.admin_role`);
-    const hasAccess = interaction.member.permissions.has(PermissionsBitField.Flags.ManageChannels)
-      || (adminRole && interaction.member.roles.cache.has(adminRole));
-    if (!hasAccess) return errorMessage(client, interaction, 'You need **Manage Channels** to manage panels.');
+    const staff = await isStaff(db, interaction.guild, interaction.member);
+    if (!staff) return errorMessage(client, interaction, 'You need **Manage Channels** or a **Staff Role** to manage panels.');
 
     // ─── /panel create ──────────────────────────────────────────────────────
     if (sub === 'create') {

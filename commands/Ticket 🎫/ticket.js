@@ -13,9 +13,8 @@ const {
   ApplicationCommandType,
   ApplicationCommandOptionType
 } = require('discord.js');
-const {
-  errorMessage
-} = require(`${process.cwd()}/functions/functions`);
+const { errorMessage } = require(`${process.cwd()}/functions/functions`);
+const { isStaff } = require(`${process.cwd()}/services/ticketService`);
 const Transcript = require('discord-html-transcripts');
 module.exports = {
   name: 'ticket',
@@ -81,7 +80,6 @@ module.exports = {
   run: async (client, interaction) => {
     let db = client.db;
     let Sub = interaction.options.getSubcommand();
-    let admin_role = await db.get(`guild_${interaction.guild.id}.ticket.admin_role`);
     let ticketName = await db.get(`guild_${interaction.guild.id}.ticket.name_${interaction.user.id}`);
     let ticketControl = await db.get(`guild_${interaction.guild.id}.ticket.control_${interaction.channel.id}`);
     switch (Sub) {
@@ -127,7 +125,8 @@ module.exports = {
       } break;
       case "open": {
         if (interaction.channel.name.startsWith(`ticket-`) || interaction.channel.name === ticketName) {
-          if (!interaction.member.roles.cache.has(admin_role) && !interaction.member.permissions.has([PermissionsBitField.Flags.ManageChannels])) return errorMessage(client, interaction, "```js\nyou are not have permissions for use this.\nPermissions Need: \"ManageChannels\" \n```")
+          const staff = await isStaff(db, interaction.guild, interaction.member);
+          if (!staff) return errorMessage(client, interaction, "You need **Manage Channels** or a **Staff Role** to use this.");
 
           interaction.reply({
             embeds: [new EmbedBuilder().setColor(client.colors.none).setTitle(`${client.emotes.open}| Open Ticket`).setDescription(`Dear friend, you requested for openning ${interaction.guild.members.cache.find(c => c.id === ticketControl)} ticket, are you sure for open here??`)],
@@ -144,7 +143,8 @@ module.exports = {
       } break;
       case "delete": {
         if(interaction.channel.name.startsWith(`ticket-`) || interaction.channel.name === ticketName) {
-          if (!interaction.member.roles.cache.has(admin_role) && !interaction.member.permissions.has([PermissionsBitField.Flags.ManageChannels])) return errorMessage(client, interaction, "```js\nyou are not have permissions for use this.\nPermissions Need: \"ManageChannels\" \n```")
+          const staff = await isStaff(db, interaction.guild, interaction.member);
+          if (!staff) return errorMessage(client, interaction, "You need **Manage Channels** or a **Staff Role** to use this.");
           interaction.reply({
             embeds: [new EmbedBuilder().setColor(client.colors.none).setTitle(`${client.emotes.trash}| Delete Ticket`).setDescription(`Dear friend, you requested for delete ${interaction.guild.members.cache.find(c => c.id === ticketControl)} ticket, are you sure for delete here??`)],
             components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setCustomId("cancel").setEmoji(client.emotes.x).setLabel("Don't Delete"), new ButtonBuilder().setStyle(ButtonStyle.Danger).setCustomId("deleteTicket").setEmoji(client.emotes.trash).setLabel("Delete It"))]
@@ -164,8 +164,9 @@ module.exports = {
         // Now does a direct rename (matches ticket-rename-cmd.js behaviour).
         const inTicket = interaction.channel.name.startsWith('ticket-') || interaction.channel.name === ticketName;
         if (!inTicket) return errorMessage(client, interaction, `This command can only be used **inside a ticket channel**.`);
-        if (!interaction.member.roles.cache.has(admin_role) && !interaction.member.permissions.has(PermissionsBitField.Flags.ManageChannels))
-          return errorMessage(client, interaction, 'You need **Manage Channels** or the **ticket admin role** to rename tickets.');
+        const staff = await isStaff(db, interaction.guild, interaction.member);
+        if (!staff)
+          return errorMessage(client, interaction, 'You need **Manage Channels** or a **Staff Role** to rename tickets.');
 
         const rawName = interaction.options.getString('name');
         const newName = rawName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 90);
@@ -197,7 +198,8 @@ module.exports = {
       case "invite": {
         if (interaction.channel.name.startsWith(`ticket-`) || interaction.channel.name === ticketName) {
           let member = interaction.options.getMember('member');
-          if (!interaction.member.roles.cache.has(admin_role) && !interaction.member.permissions.has([PermissionsBitField.Flags.ManageChannels])) return errorMessage(client, interaction, "```js\nyou are not have permissions for use this.\nPermissions Need: \"ManageChannels\" \n```")
+          const staff = await isStaff(db, interaction.guild, interaction.member);
+          if (!staff) return errorMessage(client, interaction, "You need **Manage Channels** or a **Staff Role** to use this.");
 
           let embed = new EmbedBuilder()
             .setAuthor({
@@ -241,7 +243,8 @@ module.exports = {
         }
       } break;
       case "transcript": {
-       if (!interaction.member.roles.cache.has(admin_role) && !interaction.member.permissions.has([PermissionsBitField.Flags.ManageChannels])) return errorMessage(client, interaction, "```js\nyou are not have permissions for use this.\nPermissions Need: \"ManageChannels\" \n```")
+       const staff = await isStaff(db, interaction.guild, interaction.member);
+       if (!staff) return errorMessage(client, interaction, "You need **Manage Channels** or a **Staff Role** to use this.");
        if(interaction.channel.name.startsWith(`ticket-`) || interaction.channel.name === ticketName) {
         let file = await Transcript.createTranscript(interaction.channel, {
           limit: -1,
@@ -265,7 +268,8 @@ module.exports = {
       }break;
       case "setup": {
         let channel =  interaction.options.getChannel("channel")||interaction.channel;
-  if (!interaction.member.roles.cache.has(admin_role) && !interaction.member.permissions.has([PermissionsBitField.Flags.ManageChannels])) return errorMessage(client, interaction, "```js\nyou are not have permissions for use this.\nPermissions Need: \"ManageChannels\" \n```")
+        const staff = await isStaff(db, interaction.guild, interaction.member);
+        if (!staff) return errorMessage(client, interaction, "You need **Manage Channels** or a **Staff Role** to use this.");
       
         interaction.reply({
           flags: 64,

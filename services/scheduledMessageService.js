@@ -64,7 +64,9 @@ async function _tick() {
         // Auto-close the ticket
         const ownerId    = await db.get(`guild_${guildId}.ticket.control_${channel.id}`);
         const { PermissionsBitField, EmbedBuilder } = require('discord.js');
-        const adminRoleId = await db.get(`guild_${guildId}.ticket.admin_role`);
+        const adminRole = await db.get(`guild_${guildId}.ticket.admin_role`);
+        const modRole   = await db.get(`guild_${guildId}.permissions.roles.moderator`);
+        const staffRole = await db.get(`guild_${guildId}.permissions.roles.staff`);
 
         await channel.send({
           embeds: [new EmbedBuilder()
@@ -81,7 +83,9 @@ async function _tick() {
           { id: guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] },
         ];
         if (ownerId)     overrides.push({ id: ownerId,     deny: [PermissionsBitField.Flags.ViewChannel] });
-        if (adminRoleId) overrides.push({ id: adminRoleId, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
+        if (adminRole)   overrides.push({ id: adminRole,   allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
+        if (modRole && modRole !== adminRole) overrides.push({ id: modRole, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
+        if (staffRole && staffRole !== adminRole && staffRole !== modRole) overrides.push({ id: staffRole, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
         await channel.permissionOverwrites.set(overrides).catch(() => null);
 
         const transcriptSvc = require(`${process.cwd()}/services/transcriptService`);

@@ -20,9 +20,8 @@ module.exports = {
 
   run: async (client, interaction) => {
     const db        = client.db;
-    const adminRole = await db.get(`guild_${interaction.guild.id}.ticket.admin_role`);
-    const staff     = await isStaff(db, interaction.guild, interaction.member, adminRole);
-    if (!staff) return errorMessage(client, interaction, 'You need staff permissions to lock tickets.');
+    const staff     = await isStaff(db, interaction.guild, interaction.member);
+    if (!staff) return errorMessage(client, interaction, 'You need **Manage Channels** or a **Staff Role** to lock/unlock tickets.');
 
     const inTicket = await isTicketChannel(db, interaction.guild, interaction.channel);
     if (!inTicket) return errorMessage(client, interaction, 'This command can only be used inside a ticket channel.');

@@ -20,9 +20,8 @@ module.exports = {
 
   run: async (client, interaction) => {
     const db        = client.db;
-    const adminRole = await db.get(`guild_${interaction.guild.id}.ticket.admin_role`);
-    const staff     = await isStaff(db, interaction.guild, interaction.member, adminRole);
-    if (!staff) return errorMessage(client, interaction, 'Only staff members can toggle away mode.');
+    const staff     = await isStaff(db, interaction.guild, interaction.member);
+    if (!staff) return errorMessage(client, interaction, 'You need **Manage Channels** or a **Staff Role** to use the away command.');
 
     const key      = `guild_${interaction.guild.id}.staff_away_${interaction.user.id}`;
     const isAway   = await db.get(key);

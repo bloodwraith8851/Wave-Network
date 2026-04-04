@@ -15,6 +15,11 @@ const {
 module.exports = async (client, message) => {
   const db = client.db;
   if (message.author.bot || !message.guild) return;
+  
+  // ── Activity Tracking for Tickets ──────────────────────────────────────────
+  if (message.channel.name.startsWith('ticket-')) {
+    await db.set(`guild_${message.guild.id}.ticket.last_activity_at_${message.channel.id}`, Date.now());
+  }
 
   // ── Keyword Blacklist Auto-Moderation ──────────────────────────────────────
   try {

@@ -34,14 +34,13 @@ async function run(client) {
 
       for (const [, ch] of ticketChannels) {
         try {
-          const ownerId    = await db.get(`guild_${guild.id}.ticket.control_${ch.id}`);
+          const ownerId = await db.get(`guild_${guild.id}.ticket.control_${ch.id}`);
           if (!ownerId) continue;
 
-          // Fetch last message timestamp
-          const msgs      = await ch.messages.fetch({ limit: 1 }).catch(() => null);
-          const lastMsg   = msgs?.first();
-          const lastMsgTs = lastMsg ? lastMsg.createdTimestamp : (await db.get(`guild_${guild.id}.ticket.created_at_${ch.id}`)) || 0;
-          const idleMs    = Date.now() - lastMsgTs;
+          // Use stored activity timestamp instead of fetching messages (MUCH FASTER)
+          const lastActivity = await db.get(`guild_${guild.id}.ticket.last_activity_at_${ch.id}`) || ch.createdTimestamp;
+
+          const idleMs    = Date.now() - lastActivity;
           const inactiveMs = inactiveHours * 3600 * 1000;
           const warnMs    = inactiveMs - WARN_BEFORE_MIN * 60 * 1000;
 
