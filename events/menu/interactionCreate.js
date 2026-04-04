@@ -98,7 +98,7 @@ module.exports = async (client, interaction) => {
         cooldown:    `⏳ You must wait **${check.remaining}s** before opening another ticket.`,
         max_tickets: `📌 You already have **${check.count}/${check.max}** open ticket(s). Close one first.`
       };
-      return interaction.reply({ content: reasons[check.reason] || 'Blocked.', ephemeral: true });
+      return interaction.reply({ content: reasons[check.reason] || 'Blocked.', flags: 64 });
     }
 
     // Already has a ticket?
@@ -108,7 +108,7 @@ module.exports = async (client, interaction) => {
       const existing = interaction.guild.channels.cache.find(c => c.name === existingName);
       return interaction.reply({
         content: `You already have an open ticket: ${existing || '`not found`'}. Please close it first.`,
-        ephemeral: true
+        flags: 64
       });
     }
 
@@ -119,7 +119,7 @@ module.exports = async (client, interaction) => {
         description: `Setting up your \`${categoryLabel}\` ticket. Please wait!`,
         color: '#7C3AED'
       })],
-      ephemeral: true
+      flags: 64
     });
 
     // Create ticket

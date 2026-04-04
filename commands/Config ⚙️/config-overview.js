@@ -52,6 +52,9 @@ module.exports = {
       brandingColor,
       brandingFooter,
       duplicateSens,
+      ticketType,
+      ticketCategory,
+      transcriptChannel,
     ] = await Promise.all([
       db.get(`guild_${guildId}.permissions.roles.admin`),
       db.get(`guild_${guildId}.permissions.roles.moderator`),
@@ -70,6 +73,9 @@ module.exports = {
       db.get(`guild_${guildId}.branding.color`),
       db.get(`guild_${guildId}.branding.footer`),
       db.get(`guild_${guildId}.ticket.settings.duplicate_threshold`),
+      db.get(`guild_${guildId}.ticket.type`),
+      db.get(`guild_${guildId}.ticket.category`),
+      db.get(`guild_${guildId}.ticket.settings.transcript_channel`),
     ]);
 
     const role   = id => id ? `<@&${id}>` : '`Not set`';
@@ -93,7 +99,11 @@ module.exports = {
           },
           {
             name: '📋  Channels',
-            value: `> **Mod Log:** ${ch(modlogId)}`,
+            value: [
+              `> **Parent Category:** ${ch(ticketCategory)}`,
+              `> **Transcripts:** ${ch(transcriptChannel)}`,
+              `> **Mod Log:** ${ch(modlogId)}`,
+            ].join('\n'),
             inline: false,
           },
           {
@@ -116,10 +126,11 @@ module.exports = {
       premiumEmbed(client, { title: '⚙️  Config Overview  ·  Page 2/4  — Ticket Settings', color: '#7C3AED' })
         .addFields([
           {
-            name: '🎫  Auto-Close & Reminders',
+            name: '🎫  Ticket Flow Settings',
             value: [
-              `> **Auto-Close Hours:** ${val(autoCloseHours ?? 48)}`,
-              `> **Reminder:** ${val(reminderMin ?? 720)} min`,
+              `> **Ticket Format:** \`${ticketType || 'Reason - Menu - UserTag'}\``,
+              `> **Auto-Close:** ${autoCloseHours !== 0 ? `\`${autoCloseHours || 24} hours\`` : '❌ Off'}`,
+              `> **Staff Reminder:** ${reminderMin !== 0 ? `\`${reminderMin || 30} min\`` : '❌ Off'}`,
               `> **Rating DMs:** ${on(ratingsEnabled !== false)}`,
             ].join('\n'),
             inline: false,

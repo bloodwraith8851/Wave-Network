@@ -99,7 +99,7 @@ module.exports = {
           .setThumbnail(interaction.guild.iconURL({ dynamic: true }))
 
         interaction.reply({
-          ephemeral: true,
+          flags: 64,
           embeds: [embed],
           components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('create').setEmoji(client.emotes.ticket).setLabel("Create Ticket").setStyle(ButtonStyle.Success), new ButtonBuilder().setCustomId('dont_do').setEmoji(client.emotes.x).setLabel('Cancel Process').setStyle(ButtonStyle.Danger))]
         })
@@ -107,7 +107,7 @@ module.exports = {
         setTimeout(() => {
           interaction.editReply({
             components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('timeout').setEmoji(client.emotes.alert).setLabel('Time Is Up').setStyle(ButtonStyle.Primary).setDisabled(true))]
-          })
+          }).catch(() => null);
         }, 60 * 1000)
       } break;
       case "close": {
@@ -119,7 +119,7 @@ module.exports = {
           setTimeout(() => {
             interaction.editReply({
               components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('timeout').setEmoji(client.emotes.alert).setLabel('Time Is Up').setStyle(ButtonStyle.Primary).setDisabled(true))]
-            })
+            }).catch(() => null);
           }, 60 * 1000)
         } else {
           errorMessage(client, interaction, `**My Friend, here is not a ticket channel please use this command in other channel**`)
@@ -136,7 +136,7 @@ module.exports = {
           setTimeout(() => {
             interaction.editReply({
               components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('timeout').setEmoji(client.emotes.alert).setLabel('Time Is Up').setStyle(ButtonStyle.Primary).setDisabled(true))]
-            })
+            }).catch(() => null);
           }, 60 * 1000)
         } else {
           errorMessage(client, interaction, `**My Friend, here is not a ticket channel please use this command in other channel**`)
@@ -152,7 +152,7 @@ module.exports = {
           setTimeout(() => {
             interaction.editReply({
               components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('timeout').setEmoji(client.emotes.alert).setLabel('Time Is Up').setStyle(ButtonStyle.Primary).setDisabled(true))]
-            })
+            }).catch(() => null);
           }, 60 * 1000)
         } else {
           errorMessage(client, interaction, `**My Friend, here is not a ticket channel please use this command in other channel**`)
@@ -232,7 +232,7 @@ module.exports = {
           setTimeout(async() => {
             interaction.editReply({
               components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('timeout').setEmoji(client.emotes.alert).setLabel('Time Is Up').setStyle(ButtonStyle.Primary).setDisabled(true))]
-            })
+            }).catch(() => null);
             await db.delete(`guild_${interaction.guild.id}.ticket.new_member_${interaction.channel.id}`)
           }, 60 * 1000)
 
@@ -253,7 +253,7 @@ module.exports = {
         })
         await interaction.reply({
           embeds: [new EmbedBuilder().setColor(client.colors.none).setDescription(`Creating transcript of ${interaction.channel} for you and this will send you from dm so please wait.`).setTitle(`${client.emotes.hamer}| Build Transcript For You`)],
-          ephemeral: true
+          flags: 64
         })
         await interaction.user.send({
           files: [file],
@@ -268,10 +268,10 @@ module.exports = {
   if (!interaction.member.roles.cache.has(admin_role) && !interaction.member.permissions.has([PermissionsBitField.Flags.ManageChannels])) return errorMessage(client, interaction, "```js\nyou are not have permissions for use this.\nPermissions Need: \"ManageChannels\" \n```")
       
         interaction.reply({
-          ephemeral: true,
+          flags: 64,
           embeds: [new EmbedBuilder().setFooter({ text: `Setup Ticket • Requested by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) }).setTitle(`${client.emotes.setup}| **Ticket System Setting**`).setColor(client.colors.none).setDescription(`**setup your guild ticket system in ${channel} with default or customize.**`).setThumbnail(interaction.guild.iconURL({ dynamic: true }))],
           components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('ticket_default').setEmoji(client.emotes.system).setLabel("Setup Ticket To Default").setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId('ticket_setup_custom').setEmoji(client.emotes.hamer).setLabel("Setup Ticket To Customize").setStyle(ButtonStyle.Success)), new ActionRowBuilder().addComponents([new ButtonBuilder().setStyle(ButtonStyle.Link).setEmoji(client.emotes.help).setLabel("Support").setURL(client.config.discord.server_support)])],
-          fetchReply: true
+          withResponse: true
         }).then(async(msg)=>{
         let time = 120000;
         await msg.createMessageComponentCollector({ time: time }).on('collect', async (collect)=>{
@@ -341,14 +341,16 @@ module.exports = {
          }
         }
               
-              }catch(e){
+          }catch(e){
            //errorMessage(client, collect, `\`\`\`js\n${e}\n\`\`\``)
          }
+        }).catch(() => {
+          // Ignore timeout rejections
         })
         setTimeout(()=>{
           interaction.editReply({
             components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('timeout').setEmoji(client.emotes.alert).setLabel('Time Is Up').setStyle(ButtonStyle.Primary).setDisabled(true)).addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`))]
-          })
+          }).catch(() => null);
         }, time)
         })
       }break;

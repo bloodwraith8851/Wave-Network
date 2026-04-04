@@ -3,10 +3,10 @@ require('dotenv').config();
 const {
   Client,
   Collection,
-  IntentsBitField,
+  GatewayIntentBits,
   Partials,
 } = require('discord.js');
-const { QuickDB, JSONDriver } = require('quick.db');
+const { QuickDB } = require('quick.db');
 const config = require(`${process.cwd()}/storage/config.js`);
 const Logger = require(`${process.cwd()}/utils/logger`);
 const fs     = require('fs');
@@ -20,14 +20,19 @@ const SHARD_ID         = process.env.SHARDING_ENABLED === 'true'
 const SHARDING_ENABLED = process.env.SHARDING_ENABLED === 'true';
 
 // ── Database ──────────────────────────────────────────────────────────────────
-// Each shard shares the same JSON file — quick.db uses file-level locking.
-// For production with many shards consider migrating to PostgreSQL or Redis.
-const db = new QuickDB({ driver: new JSONDriver() });
+// Migrated from JSONDriver to default SqliteDriver to support WAL (Write-Ahead Logging)
+// This is strictly required to prevent SQLITE_BUSY crashes when running multiple Shards dynamically.
+const db = new QuickDB();
 
 // ── Discord Client ────────────────────────────────────────────────────────────
 const client = new Client({
   restRequestTimeout: 15000,
-  intents: new IntentsBitField(32767),
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers,
+  ],
   partials: [
     Partials.Message,
     Partials.Channel,

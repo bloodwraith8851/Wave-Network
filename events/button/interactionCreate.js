@@ -100,12 +100,12 @@ module.exports = async (client, interaction) => {
       const action = parts[1];
       const sugId  = parseInt(parts[2]);
       const data   = await db.get(`guild_${guildId}.suggest_${sugId}`);
-      if (!data) return interaction.reply({ content: '❌ Suggestion not found.', ephemeral: true });
+      if (!data) return interaction.reply({ content: '❌ Suggestion not found.', flags: 64 });
 
       if (action === 'up' || action === 'down') {
         const key = action === 'up' ? 'upvotes' : 'downvotes';
         const other = action === 'up' ? 'downvotes' : 'upvotes';
-        if (data[key].includes(userId)) return interaction.reply({ content: '❌ You already voted!', ephemeral: true });
+        if (data[key].includes(userId)) return interaction.reply({ content: '❌ You already voted!', flags: 64 });
         data[key].push(userId);
         data[other] = data[other].filter(id => id !== userId);
         await db.set(`guild_${guildId}.suggest_${sugId}`, data);
@@ -122,7 +122,7 @@ module.exports = async (client, interaction) => {
       // Approve / Deny — staff only
       const adminRole = await db.get(`guild_${guildId}.ticket.admin_role`);
       const isAdmin   = (adminRole && interaction.member.roles.cache.has(adminRole)) || interaction.member.permissions.has('ManageMessages');
-      if (!isAdmin) return interaction.reply({ content: '❌ Only staff can approve/deny suggestions.', ephemeral: true });
+      if (!isAdmin) return interaction.reply({ content: '❌ Only staff can approve/deny suggestions.', flags: 64 });
 
       data.status = action === 'approve' ? 'approved' : 'denied';
       await db.set(`guild_${guildId}.suggest_${sugId}`, data);
@@ -141,7 +141,7 @@ module.exports = async (client, interaction) => {
     if (interaction.customId === 'premium') {
       return interaction.reply({
         embeds: [premiumEmbed(client, { title: `${client.emotes.premium}  Premium Info`, description: `Premium features are **enabled** on this bot.\n\nIncludes: Advanced Panels, Analytics, Anti-Abuse, Auto-Reply, Priority Tags and more!`, color: '#F59E0B' })],
-        ephemeral: true
+        flags: 64
       });
     }
 
@@ -233,7 +233,7 @@ module.exports = async (client, interaction) => {
           ];
       return interaction.reply({
         content: '',
-        ephemeral: true,
+        flags: 64,
         embeds: [premiumEmbed(client, {
           title: `${client.emotes.tickets}  Select Ticket Category`,
           description: 'Please select a category for your ticket from the menu below.',

@@ -144,54 +144,42 @@ module.exports = {
     const guilds = client.guilds.cache.size;
     const users  = client.guilds.cache.reduce((a, g) => a + (g.memberCount || 0), 0);
 
-    // ── Category summary table ──────────────────────────────────────────────
-    const catTable = cats
-      .filter(c => c.value !== 'Premium 💎')
-      .map(c => {
-        const count = catCounts[c.value] || 0;
-        return `${c.emoji}  **${c.label}** \`${count}\`  —  *${c.desc}*`;
-      })
-      .join('\n');
+    // ── Category summary table (Two Columns) ───────────────────────────────
+    const filteredCats = cats.filter(c => c.value !== 'Premium 💎' && c.value !== 'Owner 👑');
+    const catChunks = filteredCats.map(c => {
+      const count = catCounts[c.value] || 0;
+      return `**${c.emoji} ${c.label}** (\`${count}\`)\n└ *${c.desc.slice(0, 42)}...*`;
+    });
+
+    const col1 = catChunks.filter((_, i) => i % 2 === 0).join('\n\n');
+    const col2 = catChunks.filter((_, i) => i % 2 !== 0).join('\n\n');
 
     // ── Highlight new Phase 4 commands ────────────────────────────────────
     const highlightLines = Object.entries(NEW_COMMANDS)
-      .map(([cat, cmds]) => `**${cat}:** ${cmds}`)
-      .join('\n');
+      .map(([cat, cmds]) => `**${cat}**\n└ ${cmds.split(' ').map(c => c.startsWith('`') ? c : `*${c}*`).join(' ')}`)
+      .join('\n\n');
 
     const help = new EmbedBuilder()
       .setColor('#7C3AED')
-      .setAuthor({ name: `${client.user.username}  ·  Help & Commands`, iconURL: client.user.displayAvatarURL({ dynamic: true }) })
-      .setThumbnail(client.user.displayAvatarURL({ dynamic: true, size: 256 }))
+      .setAuthor({ name: `${client.user.username}  ·  Command Center`, iconURL: client.user.displayAvatarURL({ dynamic: true }) })
+      .setThumbnail(client.user.displayAvatarURL({ dynamic: true, size: 512 }))
+      .setDescription([
+        `## Welcome to Wave Network 👋`,
+        `Your complete **SaaS-level** Discord ticketing solution. Featuring advanced SLA tracking, intuitive staff panels, deep analytics, and native multilanguage support.`,
+        ``,
+        `**Quick Navigation:**`,
+        `> 📂 Use the **Dropdown Menu** to seamlessly browse categories.`,
+        `> 🔍 Use \`/help <command>\` to view deep-dive documentation on any command.`
+      ].join('\n'))
       .addFields([
-        {
-          name: '👋  About Wave Network',
-          value: [
-            `> Hi 👋🏻 — I'm **[Wave Network](${client.config.discord.invite}) 🎫**`,
-            `> A **SaaS-level** Discord ticket system with SLA tracking, auto-assignment,`,
-            `> escalation, analytics, i18n, webhooks, verification gates, and much more.`,
-          ].join('\n'),
-          inline: false,
-        },
-        {
-          name: '📂  How to Browse Commands',
-          value: '> Use the **dropdown menu below** to explore commands by category.\n> Use `/help <command>` for detailed info on any specific command.',
-          inline: false,
-        },
-        {
-          name: '📊  Command Categories',
-          value: catTable || 'Loading…',
-          inline: false,
-        },
-        {
-          name: '✨  New Phase 4 Commands',
-          value: highlightLines,
-          inline: false,
-        },
-        { name: '🏠  Servers',   value: `\`${guilds}\``,    inline: true },
-        { name: '👥  Users',     value: `\`${users}\``,     inline: true },
-        { name: '⚡  Commands',  value: `\`${totalCmds}\``, inline: true },
+        { name: '╭──  Core Modules', value: col1 || 'Loading…', inline: true },
+        { name: '╭──  Extensions', value: col2 || 'Loading…', inline: true },
+        { name: '\u200B', value: '────────────────────────────────────────', inline: false }, 
+        { name: '✨  Latest Command Additions', value: highlightLines, inline: false },
+        { name: '\u200B', value: '────────────────────────────────────────', inline: false }, 
+        { name: '📈  Network Statistics', value: `**Servers Hosted:** \`${guilds}\`  |  **Total Users:** \`${users}\`  |  **Active Commands:** \`${totalCmds}\``, inline: false },
       ])
-      .setFooter({ text: `Requested by ${interaction.user.tag}  ·  Wave Network  ·  /help <command> for details`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
+      .setFooter({ text: `Wave Network v4.0.0  ·  Requested by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
       .setTimestamp();
 
     // Build dropdown

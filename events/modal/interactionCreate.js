@@ -18,7 +18,7 @@ try {
     const choice  = interaction.fields.getTextInputValue('report');
     const guild   = client.guilds.cache.get(client.config.discord.server_id);
     const channel = guild?.channels?.cache?.get(client.config.discord.server_channel_report);
-    if (!channel) return interaction.reply({ content: '❌ Report channel not configured.', ephemeral: true });
+    if (!channel) return interaction.reply({ content: '❌ Report channel not configured.', flags: 64 });
     if ([' ', '  '].includes(choice)) return errorMessage(client, interaction, 'Please write full content for reporting.');
 
     let invite;
@@ -39,7 +39,7 @@ try {
 
     await channel.send({ embeds: [embed] });
     await interaction.reply({
-      ephemeral: true,
+      flags: 64,
       embeds: [premiumEmbed(client, {
         title: '✅  Report Sent',
         description: 'Your report has been delivered to our team. Thank you for helping us improve!',

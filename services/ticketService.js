@@ -3,17 +3,10 @@
  * Centralises all ticket CRUD so button/menu/command handlers stay thin.
  */
 
-const {
-  ChannelType,
-  PermissionsBitField,
-  EmbedBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-} = require('discord.js');
+const { ChannelType, PermissionsBitField, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { premiumEmbed, ticketControlRow } = require('../functions/functions');
-const analyticsService = require('./analyticsService');
-const autoReplyService = require('./autoReplyService');
+const analyticsService  = require('./analyticsService');
+const autoReplyService  = require('./autoReplyService');
 
 /**
  * Creates a ticket channel.
@@ -53,10 +46,31 @@ async function createTicket(client, interaction, category, panelId = null) {
   // ── channel permissions ───────────────────────────────────────────────────
   const permOverwrites = [
     {
+      // Ticket owner
       id: user.id,
-      allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.ReadMessageHistory]
+      allow: [
+        PermissionsBitField.Flags.SendMessages,
+        PermissionsBitField.Flags.ViewChannel,
+        PermissionsBitField.Flags.ReadMessageHistory,
+        PermissionsBitField.Flags.AttachFiles,
+        PermissionsBitField.Flags.EmbedLinks,
+      ]
     },
     {
+      // Bot itself — MUST be explicit so welcome message + buttons always send
+      id: guild.members.me.id,
+      allow: [
+        PermissionsBitField.Flags.SendMessages,
+        PermissionsBitField.Flags.ViewChannel,
+        PermissionsBitField.Flags.ReadMessageHistory,
+        PermissionsBitField.Flags.ManageMessages,
+        PermissionsBitField.Flags.AttachFiles,
+        PermissionsBitField.Flags.EmbedLinks,
+        PermissionsBitField.Flags.ManageChannels,
+      ]
+    },
+    {
+      // Everyone else — no view
       id: guild.roles.everyone,
       deny: [PermissionsBitField.Flags.ViewChannel]
     }
@@ -64,18 +78,41 @@ async function createTicket(client, interaction, category, panelId = null) {
   if (admin_role_has) {
     permOverwrites.push({
       id: admin_role,
-      allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.ReadMessageHistory]
+      allow: [
+        PermissionsBitField.Flags.SendMessages,
+        PermissionsBitField.Flags.ViewChannel,
+        PermissionsBitField.Flags.ReadMessageHistory,
+        PermissionsBitField.Flags.AttachFiles,
+        PermissionsBitField.Flags.EmbedLinks,
+      ]
     });
   }
   if (categoryRole && categoryRole !== admin_role) {
     permOverwrites.push({
       id: categoryRole,
-      allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.ReadMessageHistory]
+      allow: [
+        PermissionsBitField.Flags.SendMessages,
+        PermissionsBitField.Flags.ViewChannel,
+        PermissionsBitField.Flags.ReadMessageHistory,
+      ]
     });
   }
 
+
+  // ── determine channel name ────────────────────────────────────────────────
+  const ticketTypeFormat = (await db.get(`guild_${guild.id}.ticket.type`)) || "ticket-username";
+  let formattedName = `ticket-${user.username}`;
+  
+  if (ticketTypeFormat === 'category-username') {
+    const rawCatName = category.replace(/[^a-z0-9]/gi, ''); // Clean emojis or spaces out of the category prefix
+    formattedName = `${rawCatName}-${user.username}`;
+  } else if (ticketTypeFormat === 'ticket-id') {
+    const randomId = Math.floor(100000 + Math.random() * 900000);
+    formattedName = `ticket-${randomId}`;
+  }
+
   // ── create channel ────────────────────────────────────────────────────────
-  const channelName  = `ticket-${user.username}`.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 90) || `ticket-${user.id}`;
+  const channelName  = formattedName.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 90) || `ticket-${user.id}`;
   const topicParts   = [`👤 ${user.tag}`, `🆔 ${user.id}`, `📂 ${category}`];
   if (cmd) topicParts.push(`Close: /${cmd.name} close`);
 
@@ -105,8 +142,8 @@ async function createTicket(client, interaction, category, panelId = null) {
     timestamp: Date.now()
   });
 
-  // ── auto-reply suggestion ─────────────────────────────────────────────────
-  const suggestion = autoReplyService.getSuggestion(category, '');
+  // ── auto-reply suggestion (async, checks category keyword against guild rules) ──
+  const suggestion = await autoReplyService.checkAutoReply(db, guild.id, category).catch(() => null);
 
   // ── welcome message ───────────────────────────────────────────────────────
   const welcomeEmbed = premiumEmbed(client, {
@@ -129,12 +166,21 @@ async function createTicket(client, interaction, category, panelId = null) {
 
   const controlRow = ticketControlRow({ state: 'open' });
 
-  const msg = await channel.send({
-    content: `<@${user.id}>`,
-    embeds: [welcomeEmbed],
-    components: [controlRow]
-  });
-  await channel.messages.pin(msg.id).catch(() => null);
+  // ── send welcome message ──────────────────────────────────────────────────────────────────
+  let msg;
+  try {
+    msg = await channel.send({
+      content: `<@${user.id}>`,
+      embeds: [welcomeEmbed],
+      components: [controlRow]
+    });
+    await channel.messages.pin(msg.id).catch(() => null);
+  } catch (sendErr) {
+    // Log but don't crash — the channel was created, the welcome message just failed
+    console.error(`[ticketService] Failed to send welcome message in ${channel.name}:`, sendErr?.message);
+    // Try a plain text fallback so the user at least sees something
+    await channel.send({ content: `<@${user.id}> Welcome! A staff member will assist you shortly. *(buttons failed to load — please refresh Discord)*` }).catch(() => null);
+  }
 
   // ── log ───────────────────────────────────────────────────────────────────
   if (logsChannel) {

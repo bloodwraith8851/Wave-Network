@@ -6,7 +6,8 @@ const {
   ButtonStyle,
   ChannelType,
   ApplicationCommandType,
-  ApplicationCommandOptionType
+  ApplicationCommandOptionType,
+  MessageFlags
 } = require("discord.js");
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -138,7 +139,7 @@ async function errorMessage(client, interaction, error) {
     )
   ];
 
-  const payload = { embeds: [embed], components, ephemeral: true };
+  const payload = { embeds: [embed], components, flags: MessageFlags.Ephemeral };
 
   // ── Safe reply: handles deferred, already-replied, and expired interactions ──
   try {
