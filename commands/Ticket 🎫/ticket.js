@@ -30,7 +30,8 @@ module.exports = {
       description: "Create a new ticket channel manually.",
       type: ApplicationCommandOptionType.Subcommand,
       options: [
-        { name: "category", description: "Select a category", type: ApplicationCommandOptionType.String, required: false }
+        { name: "category", description: "Select a category", type: ApplicationCommandOptionType.String, required: false },
+        { name: "reason", description: "The reason for creating this ticket", type: ApplicationCommandOptionType.String, required: false }
       ]
     },
     {
@@ -63,6 +64,43 @@ module.exports = {
       name: "transcript",
       description: "Generate a transcript of this ticket.",
       type: ApplicationCommandOptionType.Subcommand
+    },
+    {
+      name: "priority",
+      description: "Set the priority level of this ticket.",
+      type: ApplicationCommandOptionType.Subcommand,
+      options: [
+        {
+          name: "level",
+          description: "Priority level",
+          type: ApplicationCommandOptionType.String,
+          required: true,
+          choices: [
+            { name: "🔴 High", value: "high" },
+            { name: "🟡 Medium", value: "medium" },
+            { name: "🟢 Low", value: "low" }
+          ]
+        }
+      ]
+    },
+    {
+      name: "move",
+      description: "Move this ticket to another category.",
+      type: ApplicationCommandOptionType.Subcommand,
+      options: [
+        { name: "category", description: "The new category value/name", type: ApplicationCommandOptionType.String, required: true },
+        { name: "panel-id", description: "Optional panel ID if moving between panels", type: ApplicationCommandOptionType.String, required: false }
+      ]
+    },
+    {
+      name: "alert",
+      description: "Alert staff if you've been waiting for a response.",
+      type: ApplicationCommandOptionType.Subcommand
+    },
+    {
+      name: "stats",
+      description: "View real-time statistics for this ticket.",
+      type: ApplicationCommandOptionType.Subcommand
     }
   ],
 
@@ -81,7 +119,8 @@ module.exports = {
       case 'create': {
         await interaction.deferReply({ flags: 64 });
         const category = interaction.options.getString('category') || 'General Support';
-        const ticketChannel = await ticketService.createTicket(client, interaction, category);
+        const reason   = interaction.options.getString('reason')   || 'Manual creation by staff/admin.';
+        const ticketChannel = await ticketService.createTicket(client, interaction, category, null, reason);
         if (ticketChannel) {
           await successMessage(client, interaction, `Your ticket has been created: ${ticketChannel}`);
         }
@@ -161,6 +200,90 @@ module.exports = {
         await loadingState(interaction, 'Generating transcript...');
         await transcriptService.generateAndDeliver(client, channel, member, 'manual');
         await successMessage(client, interaction, 'Transcript has been generated and delivered to your DMs.');
+        break;
+      }
+
+      case 'priority': {
+        if (await permissionService.requirePermission(db, guild, member, 'ticket.priority', client.config, interaction, errorMessage)) return;
+        
+        const level = interaction.options.getString('level');
+        await ticketService.setPriority(db, guild.id, channel, level);
+        
+        const embed = premiumEmbed(client, {
+          title: '⚡ Priority Updated',
+          description: `This ticket has been marked as **${level.toUpperCase()}** priority.`,
+          color: level === 'high' ? '#EF4444' : (level === 'medium' ? '#F59E0B' : '#10B981')
+        });
+        
+        await interaction.reply({ embeds: [embed] });
+        break;
+      }
+
+      case 'move': {
+        if (await permissionService.requirePermission(db, guild, member, 'ticket.transfer', client.config, interaction, errorMessage)) return;
+        
+        const newCat = interaction.options.getString('category');
+        const pId    = interaction.options.getString('panel-id');
+        
+        await loadingState(interaction, `Transferring ticket to \`${newCat}\`...`);
+        const success = await ticketService.moveTicket(client, db, guild, channel, newCat, pId);
+        
+        if (success) {
+          await successMessage(client, interaction, `Ticket has been successfully moved to the **${newCat}** department.`);
+        } else {
+          await errorMessage(client, interaction, 'Failed to move ticket. Ensure the category and panel ID are valid.');
+        }
+        break;
+      }
+
+      case 'alert': {
+        // Cooldown for alert
+        const lastAlert = await db.get(`guild_${guild.id}.ticket.last_alert_${channel.id}`) || 0;
+        const cooldown  = 300000; // 5 minutes
+        if (Date.now() - lastAlert < cooldown) {
+          const remaining = Math.ceil((cooldown - (Date.now() - lastAlert)) / 60000);
+          return errorMessage(client, interaction, `Staff have already been alerted recently. Please wait **${remaining}m**.`);
+        }
+
+        const staffRole = await db.get(`guild_${guild.id}.permissions.roles.staff`);
+        const modRole   = await db.get(`guild_${guild.id}.permissions.roles.moderator`);
+        
+        await db.set(`guild_${guild.id}.ticket.last_alert_${channel.id}`, Date.now());
+        
+        const embed = premiumEmbed(client, {
+          title: '🚨  Staff Alert',
+          description: `The user is requesting an update on this ticket.\n\n**Requested By:** ${user}`,
+          color: '#EF4444'
+        });
+        
+        await channel.send({ content: `${staffRole ? `<@&${staffRole}>` : ''} ${modRole ? `<@&${modRole}>` : ''}`, embeds: [embed] });
+        await successMessage(client, interaction, 'Staff have been notified of your request for an update.');
+        break;
+      }
+
+      case 'stats': {
+        const createdAt = await db.get(`guild_${guild.id}.ticket.created_at_${channel.id}`);
+        const category  = await db.get(`guild_${guild.id}.ticket.category_${channel.id}`);
+        const claimedBy = await db.get(`guild_${guild.id}.ticket.claimed_${channel.id}`);
+        const priority  = await db.get(`guild_${guild.id}.ticket.priority_${channel.id}`) || 'MEDIUM';
+        
+        const durationMs = Date.now() - (createdAt || Date.now());
+        const hours = Math.floor(durationMs / 3600000);
+        const mins  = Math.floor((durationMs % 3600000) / 60000);
+
+        const embed = premiumEmbed(client, {
+          title: '📊 Ticket Statistics',
+          fields: [
+            { name: '📂 Category', value: `\`${category || 'Unknown'}\``, inline: true },
+            { name: '⚡ Priority', value: `\`${priority.toUpperCase()}\``, inline: true },
+            { name: '🙋 Claimed By', value: claimedBy ? `<@${claimedBy}>` : '`Unclaimed`', inline: true },
+            { name: '🕙 Duration', value: `\`${hours}h ${mins}m\``, inline: true },
+            { name: '👤 Owner', value: `<@${user.id}>`, inline: true }
+          ],
+          color: client.colors?.info
+        });
+        
+        await interaction.reply({ embeds: [embed] });
         break;
       }
     }

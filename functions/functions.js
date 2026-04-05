@@ -351,6 +351,8 @@ module.exports = {
   premiumEmbed,
   priorityBadge,
   ticketControlRow,
+  loadingState,
+  successMessage,
   // Existing helpers (preserved)
   logMessage,
   errorMessage,

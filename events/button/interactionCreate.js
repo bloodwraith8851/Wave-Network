@@ -168,71 +168,54 @@ module.exports = async (client, interaction) => {
       return;
     }
 
-    // ── 🎫 Panel Button / Create Ticket ──────────────────────────────────────
+    // ── 🎫 Panel Button / Create Ticket (V3) ──────────────────────────────────
     if (interaction.customId.startsWith('panel_button') || interaction.customId === 'create_ticket' || interaction.customId === 'ticket_create') {
-      let categoryLabel = 'General Support';
-      let panelId = null;
+      
+      // If NOT a multi-panel button (generic): Show the CATEGORY MENU
+      if (interaction.customId === 'create_ticket' || interaction.customId === 'ticket_create') {
+        const embed = premiumEmbed(client, {
+          title: '🎫  Select a Ticket Category',
+          description: 'Please select the category that best fits your issue from the menu below.',
+          color: client.colors?.info
+        });
 
-      // Handle new format: panel_button:panelId:catValue
+        const menu = new StringSelectMenuBuilder()
+          .setCustomId('ticket_type_select')
+          .setPlaceholder('🎫  Select a ticket type...')
+          .addOptions([
+            { label: 'Login Issue', value: 'Login Issue', emoji: '🔐', description: 'Difficulty logging into the server/network.' },
+            { label: 'Payment Issue', value: 'Payment Issue', emoji: '💳', description: 'Store, billing, or donation related support.' },
+            { label: 'General Support', value: 'General Support', emoji: '⚙️', description: 'Basic questions or common issues.' },
+            { label: 'Other', value: 'Other', emoji: '🔘', description: 'Custom problem not listed above.' }
+          ]);
+
+        return interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu)], flags: 64 });
+      }
+
+      // If it IS a multi-panel button: Already has category, show Modal directly
+      let panelId  = 'default';
+      let catValue = 'General Support';
       if (interaction.customId.includes(':')) {
         const parts = interaction.customId.split(':');
-        panelId = parts[1];
-        const catValue = parts[2];
-
-        const panels = (await db.get(`guild_${guildId}.panels`)) || [];
-        const panel  = panels.find(p => p.id === panelId);
-        if (panel) {
-          const cat = panel.categories.find(c => c.value === catValue);
-          if (cat) categoryLabel = cat.label;
-        }
+        panelId  = parts[1];
+        catValue = parts[2];
       }
 
-      // 1. Anti-abuse checks
-      const check = await antiAbuseService.runAllChecks(db, guild, user.id);
-      if (!check.allowed) {
-        const reasons = {
-          spam:        `🚫 You're clicking too fast! Please slow down.`,
-          cooldown:    `⏳ You must wait **${check.remaining}s** before opening another ticket.`,
-          max_tickets: `📌 You already have **${check.count}/${check.max}** open ticket(s). Close one first.`
-        };
-        return interaction.reply({ content: reasons[check.reason] || 'Blocked.', flags: 64 });
-      }
+      const modal = new ModalBuilder()
+        .setCustomId(`ticket_create_modal:${panelId}:${catValue}`)
+        .setTitle(`🎫  Open a Support Ticket`);
 
-      // 2. Duplicate check
-      const alreadyOpen = await ticketService.hasOpenTicket(db, guild, user.id);
-      if (alreadyOpen) {
-        const existingName = await db.get(`guild_${guildId}.ticket.name_${user.id}`);
-        const existing = guild.channels.cache.find(c => c.name === existingName);
-        return interaction.reply({
-          content: `You already have an open ticket: ${existing || '`not found`'}. Please close it first.`,
-          flags: 64
-        });
-      }
+      const reasonInput = new TextInputBuilder()
+        .setCustomId('ticket_reason')
+        .setLabel('Primary Reason / Issue Details')
+        .setPlaceholder('Describe exactly what you need help with (e.g. login error code, store ID, etc.)')
+        .setStyle(TextInputStyle.Paragraph)
+        .setMinLength(10)
+        .setMaxLength(1000)
+        .setRequired(true);
 
-      // 3. Acknowledge and Create
-      await interaction.reply({
-        embeds: [premiumEmbed(client, {
-          title: `⏳  Creating Your Ticket...`,
-          description: `Please wait while we set up your support channel.`,
-          color: '#7C3AED'
-        })],
-        flags: 64
-      });
-
-      const channel = await ticketService.createTicket(client, interaction, categoryLabel, panelId);
-      if (!channel) {
-        return interaction.editReply({ content: '❌ Failed to create ticket. Please try again.' }).catch(() => null);
-      }
-
-      // 4. Finalize
-      await antiAbuseService.setCooldown(db, guildId, user.id);
-      return interaction.editReply({
-        embeds: [premiumEmbed(client, {
-          title: `✅  Ticket Created`,
-          description: `Your ticket is ready: ${channel}\n\n**Category:** \`${categoryLabel}\``,
-          color: '#10B981'
-        }).setFooter({ text: `${guild.name}  •  Wave Network`, iconURL: guild.iconURL({ dynamic: true }) })]
-      }).catch(() => null);
+      modal.addComponents(new ActionRowBuilder().addComponents(reasonInput));
+      return await interaction.showModal(modal);
     }
 
     // ── ⭐ Rating Handler ───────────────────────────────────────────────────

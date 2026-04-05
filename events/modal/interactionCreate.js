@@ -19,6 +19,8 @@ const analyticsService  = require(`${process.cwd()}/services/analyticsService`);
 const webhookService    = require(`${process.cwd()}/services/webhookService`);
 const cache             = require(`${process.cwd()}/services/cacheService`);
 const ratingService      = require(`${process.cwd()}/services/ratingService`);
+const ticketService      = require(`${process.cwd()}/services/ticketService`);
+const antiAbuseService   = require(`${process.cwd()}/services/antiAbuseService`);
 
 module.exports = async (client, interaction) => {
   try {
@@ -91,7 +93,66 @@ module.exports = async (client, interaction) => {
       return;
     }
 
-    // ── 📣 Report Modal ────────────────────────────────────────────────────────
+    // ── 🎫 Ticket Create Modal ──────────────────────────────────────────────
+    if (customId.startsWith('ticket_create_modal')) {
+      const parts = customId.split(':');
+      const panelId  = parts[1];
+      const catValue = parts[2];
+      const reason   = interaction.fields.getTextInputValue('ticket_reason');
+
+      // 1. Anti-abuse checks
+      const check = await antiAbuseService.runAllChecks(db, guild, user.id);
+      if (!check.allowed) {
+        const reasons = {
+          spam:        `🚫 You're clicking too fast! Please slow down.`,
+          cooldown:    `⏳ You must wait **${check.remaining}s** before opening another ticket.`,
+          max_tickets: `📌 You already have **${check.count}/${check.max}** open ticket(s). Close one first.`
+        };
+        return interaction.reply({ content: reasons[check.reason] || 'Blocked.', flags: 64 });
+      }
+
+      // 2. Duplicate check
+      const alreadyOpen = await ticketService.hasOpenTicket(db, guild, user.id);
+      if (alreadyOpen) {
+        const existingName = await db.get(`guild_${guildId}.ticket.name_${user.id}`);
+        const existing = guild.channels.cache.find(c => c.name === existingName);
+        return interaction.reply({
+          content: `You already have an open ticket: ${existing || '`not found`'}. Please close it first.`,
+          flags: 64
+        });
+      }
+
+      // 3. Acknowledge and Create
+      await loadingState(interaction, 'Creating your ticket...');
+
+      // Resolve category label
+      let categoryLabel = catValue;
+      if (panelId !== 'default') {
+        const panels = (await db.get(`guild_${guildId}.panels`)) || [];
+        const panel  = panels.find(p => p.id === panelId);
+        if (panel) {
+          const cat = panel.categories.find(c => c.value === catValue);
+          if (cat) categoryLabel = cat.label;
+        }
+      }
+
+      const ticketChannel = await ticketService.createTicket(client, interaction, categoryLabel, panelId === 'default' ? null : panelId, reason);
+      
+      if (!ticketChannel) {
+        return interaction.editReply({ content: '❌ Failed to create ticket. Please try again.' }).catch(() => null);
+      }
+
+      // 4. Finalize
+      await antiAbuseService.setCooldown(db, guildId, user.id);
+      return interaction.editReply({
+        embeds: [premiumEmbed(client, {
+          title: `✅  Ticket Created`,
+          description: `Your ticket is ready: ${ticketChannel}\n\n**Category:** \`${categoryLabel}\``,
+          color: '#10B981'
+        }).setFooter({ text: `${guild.name}  •  Wave Network`, iconURL: guild.iconURL({ dynamic: true }) })],
+        components: []
+      }).catch(() => null);
+    }
     if (customId === 'reporting') {
       const report = interaction.fields.getTextInputValue('report');
       const logChannelId = client.config.discord.server_channel_report;

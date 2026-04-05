@@ -22,7 +22,7 @@ const verificationService  = require('./verificationService');
 /**
  * Creates a ticket channel with full feature wiring.
  */
-async function createTicket(client, interaction, category, panelId = null) {
+async function createTicket(client, interaction, category, panelId = null, reason = 'No reason provided.') {
   const db = client.db;
   const guild = interaction.guild;
   const user  = interaction.user;
@@ -67,7 +67,7 @@ async function createTicket(client, interaction, category, panelId = null) {
   }
 
   const channelName  = formattedName.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 90);
-  const topicParts   = [`👤 ${user.tag}`, `🆔 ${user.id}`, `📂 ${category}`];
+  const topicParts   = [`👤 ${user.tag}`, `🆔 ${user.id}`, `📂 ${category}`, `📝 ${reason.slice(0, 50)}...`];
 
   const permOverwrites = [
     { id: user.id, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.ReadMessageHistory, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks] },
@@ -110,7 +110,10 @@ async function createTicket(client, interaction, category, panelId = null) {
     title: `🎫  Ticket Created: ${category}`,
     description: [
       `Welcome, ${user}! Our staff team has been notified.`,
-      `Please describe your issue in detail below.`,
+      `Please see your described issue below and wait for a response.`,
+      ``,
+      `**📄  Reported Issue:**`,
+      `> ${reason}`,
       ``,
       autoReply ? `> 💡 **Suggested Solution:**\n> ${autoReply}` : '',
       kbLines
@@ -129,25 +132,96 @@ async function createTicket(client, interaction, category, panelId = null) {
     user: { id: user.id, tag: user.tag },
     channel: { id: channel.id, name: channel.name },
     category,
+    reason,
     timestamp: Date.now()
   });
 
   // ── 📊 Analytics ──────────────────────────────────────────────────────────
   await analyticsService.trackEvent(db, guild.id, 'ticket_created', {
-    userId: user.id, category, channelId: channel.id, timestamp: Date.now()
+    userId: user.id, category, channelId: channel.id, timestamp: Date.now(), reason
   });
 
   // ── 📜 Audit Log ──────────────────────────────────────────────────────────
   if (logsChannel) {
     const logEmbed = premiumEmbed(client, {
       title: '🎫  New Ticket',
-      description: `**User:** ${user} (\`${user.id}\`)\n**Channel:** ${channel}\n**Category:** \`${category}\``,
+      description: `**User:** ${user} (\`${user.id}\`)\n**Channel:** ${channel}\n**Category:** \`${category}\`\n**Reason:** ${reason}`,
       color: client.colors?.success
     });
     await logsChannel.send({ embeds: [logEmbed] }).catch(() => null);
   }
 
   return channel;
+}
+
+/**
+ * Update a ticket's priority level.
+ */
+async function setPriority(db, guildId, channel, level) {
+  const priority = level.toLowerCase(); // low, medium, high
+  await db.set(`guild_${guildId}.ticket.priority_${channel.id}`, priority);
+  
+  // Update topic with new highlight
+  const currentTopic = channel.topic || '';
+  const newTopic = currentTopic.includes('| ⚡ Priority:') 
+    ? currentTopic.replace(/\|\s*⚡ Priority:.*$/, `| ⚡ Priority: ${priority.toUpperCase()}`)
+    : `${currentTopic} | ⚡ Priority: ${priority.toUpperCase()}`;
+    
+  await channel.setTopic(newTopic).catch(() => null);
+  return true;
+}
+
+/**
+ * Move a ticket to a new category/panel.
+ */
+async function moveTicket(client, db, guild, channel, category, panelId = null) {
+  // 1. Resolve new roles
+  const [admin_role, mod_role, staff_role] = await Promise.all([
+    db.get(`guild_${guild.id}.ticket.admin_role`),
+    db.get(`guild_${guild.id}.permissions.roles.moderator`),
+    db.get(`guild_${guild.id}.permissions.roles.staff`)
+  ]);
+
+  let categoryRole = null;
+  if (panelId) {
+    const panels = (await db.get(`guild_${guild.id}.panels`)) || [];
+    const panel  = panels.find(p => p.id === panelId);
+    if (panel) {
+      const cat = panel.categories.find(c => c.value === category);
+      if (cat?.role) categoryRole = cat.role;
+    }
+  } else {
+    categoryRole = await db.get(`guild_${guild.id}.ticket.category_role_${category}`);
+  }
+
+  // 2. Resolve owner
+  const ownerId = await db.get(`guild_${guild.id}.ticket.control_${channel.id}`);
+  if (!ownerId) return false;
+
+  // 3. New permission set
+  const permOverwrites = [
+    { id: ownerId, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.ReadMessageHistory, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks] },
+    { id: guild.members.me.id, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.ReadMessageHistory, PermissionsBitField.Flags.ManageMessages, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks, PermissionsBitField.Flags.ManageChannels] },
+    { id: guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] }
+  ];
+  [admin_role, mod_role, staff_role, categoryRole].forEach(id => {
+    if (id) permOverwrites.push({ id, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.ReadMessageHistory, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks] });
+  });
+
+  await channel.permissionOverwrites.set(permOverwrites);
+  
+  // 4. Update Database
+  await db.set(`guild_${guild.id}.ticket.category_${channel.id}`, category);
+  
+  // 5. Update Topic
+  const topicParts = channel.topic ? channel.topic.split('|').map(s => s.trim()) : [];
+  // Assume index 2 is category based on createTicket logic: `[👤 tag, 🆔 id, 📂 category, 📝 reason]`
+  if (topicParts.length >= 3) topicParts[2] = `📂 ${category}`;
+  else topicParts.push(`📂 ${category}`);
+  
+  await channel.setTopic(topicParts.join('  |  ')).catch(() => null);
+  
+  return true;
 }
 
 async function hasOpenTicket(db, guild, userId) {
@@ -171,4 +245,4 @@ async function isTicketChannel(db, guild, channel) {
   return !!control || channel.name.startsWith('ticket-');
 }
 
-module.exports = { createTicket, hasOpenTicket, isStaff, isTicketChannel };
+module.exports = { createTicket, hasOpenTicket, isStaff, isTicketChannel, setPriority, moveTicket };

@@ -196,14 +196,29 @@ module.exports = {
 
       const target = interaction.options.getChannel('channel') || interaction.channel;
 
-      // Build the panel embed
-      const panelEmbed = new EmbedBuilder()
-        .setTitle(panel.embed.title)
-        .setDescription(panel.embed.description)
-        .setColor(panel.embed.color)
-        .setThumbnail(interaction.guild.iconURL({ dynamic: true }))
-        .setTimestamp()
-        .setFooter({ text: `${interaction.guild.name}  •  Wave Network`, iconURL: interaction.guild.iconURL({ dynamic: true }) });
+      // Build the premium panel embed
+      const panelEmbed = premiumEmbed(client, {
+        title: `🔱  ${panel.embed.title || 'Wave Network | Support Center'}`,
+        description: [
+          `${panel.embed.description || 'Welcome to our specialized support portal.'}`,
+          ``,
+          `**How it works:**`,
+          `1️⃣ Select the appropriate category below.`,
+          `2️⃣ Describe your issue in the popup modal.`,
+          `3️⃣ A staff member will be with you shortly.`,
+          ``,
+          `> *All interactions are logged for quality and security purposes.*`
+        ].join('\n'),
+        color: panel.embed.color || client.colors?.primary,
+        fields: [
+          { name: '🕒  Avg. Response', value: '`⚡ < 15 Mins`', inline: true },
+          { name: '🛡️  Privacy', value: '`🔒 Encrypted`', inline: true },
+          { name: '👥  Active Staff', value: '`🛡️ Available`', inline: true }
+        ]
+      })
+      .setThumbnail(interaction.guild.iconURL({ dynamic: true }))
+      .setImage(panel.embed.image || null)
+      .setFooter({ text: `${interaction.guild.name}  •  Premium Support Hub`, iconURL: interaction.guild.iconURL({ dynamic: true }) });
 
       const style = interaction.options.getString('style') || 'menu';
 
