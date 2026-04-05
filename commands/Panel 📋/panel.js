@@ -66,6 +66,16 @@ module.exports = {
           type: ApplicationCommandOptionType.Channel,
           channelTypes: [ChannelType.GuildText],
           required: false
+        },
+        {
+          name: 'style',
+          description: 'The deployment style (Dropdown menu or Buttons).',
+          type: ApplicationCommandOptionType.String,
+          required: false,
+          choices: [
+            { name: '📂 Select Menu (Default)', value: 'menu' },
+            { name: '🔘 Buttons', value: 'button' }
+          ]
         }
       ]
     },
@@ -195,24 +205,40 @@ module.exports = {
         .setTimestamp()
         .setFooter({ text: `${interaction.guild.name}  •  Wave Network`, iconURL: interaction.guild.iconURL({ dynamic: true }) });
 
-      // Build select menu options (max 25)
-      const menuOptions = panel.categories.map(cat => {
-        const opt = { label: cat.label, value: `${panel.id}__${cat.value}` };
-        if (cat.description) opt.description = cat.description;
-        if (cat.emoji) opt.emoji = cat.emoji;
-        return opt;
-      });
+      const style = interaction.options.getString('style') || 'menu';
 
-      const selectMenu = new StringSelectMenuBuilder()
-        .setCustomId(`panel_select`)
-        .setPlaceholder(`🎫  Select a category to open a ticket`)
-        .setMinValues(1)
-        .setMaxValues(1)
-        .addOptions(menuOptions);
+      let components = [];
+      if (style === 'menu') {
+        const selectMenu = new StringSelectMenuBuilder()
+          .setCustomId(`panel_select`)
+          .setPlaceholder(`🎫  Select a category to open a ticket`)
+          .setMinValues(1)
+          .setMaxValues(1)
+          .addOptions(panel.categories.map(cat => {
+            const opt = { label: cat.label, value: `${panel.id}__${cat.value}` };
+            if (cat.description) opt.description = cat.description;
+            if (cat.emoji) opt.emoji = cat.emoji;
+            return opt;
+          }));
+        components = [new ActionRowBuilder().addComponents(selectMenu)];
+      } else {
+        // Build Buttons (max 5 per row, max 25 total)
+        for (let i = 0; i < panel.categories.length; i += 5) {
+          const row = new ActionRowBuilder();
+          const chunk = panel.categories.slice(i, i + 5);
+          chunk.forEach(cat => {
+            const btn = new ButtonBuilder()
+              .setCustomId(`panel_button:${panel.id}:${cat.value}`)
+              .setLabel(cat.label)
+              .setStyle(ButtonStyle.Success); // Premium default
+            if (cat.emoji) btn.setEmoji(cat.emoji);
+            row.addComponents(btn);
+          });
+          components.push(row);
+        }
+      }
 
-      const row = new ActionRowBuilder().addComponents(selectMenu);
-
-      await target.send({ embeds: [panelEmbed], components: [row] });
+      await target.send({ embeds: [panelEmbed], components });
 
       const confirm = premiumEmbed(client, {
         title: `✅  Panel Sent`,

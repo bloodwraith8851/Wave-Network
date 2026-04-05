@@ -27,6 +27,8 @@ const permissionService  = require(`${process.cwd()}/services/permissionService`
 const webhookService     = require(`${process.cwd()}/services/webhookService`);
 const cache             = require(`${process.cwd()}/services/cacheService`);
 const ratingService     = require(`${process.cwd()}/services/ratingService`);
+const ticketService     = require(`${process.cwd()}/services/ticketService`);
+const antiAbuseService  = require(`${process.cwd()}/services/antiAbuseService`);
 
 module.exports = async (client, interaction) => {
   try {
@@ -164,6 +166,73 @@ module.exports = async (client, interaction) => {
       await channel.setTopic(`${topic} | 🙋 Claimed by: ${user.tag}`).catch(() => null);
       
       return;
+    }
+
+    // ── 🎫 Panel Button / Create Ticket ──────────────────────────────────────
+    if (interaction.customId.startsWith('panel_button') || interaction.customId === 'create_ticket' || interaction.customId === 'ticket_create') {
+      let categoryLabel = 'General Support';
+      let panelId = null;
+
+      // Handle new format: panel_button:panelId:catValue
+      if (interaction.customId.includes(':')) {
+        const parts = interaction.customId.split(':');
+        panelId = parts[1];
+        const catValue = parts[2];
+
+        const panels = (await db.get(`guild_${guildId}.panels`)) || [];
+        const panel  = panels.find(p => p.id === panelId);
+        if (panel) {
+          const cat = panel.categories.find(c => c.value === catValue);
+          if (cat) categoryLabel = cat.label;
+        }
+      }
+
+      // 1. Anti-abuse checks
+      const check = await antiAbuseService.runAllChecks(db, guild, user.id);
+      if (!check.allowed) {
+        const reasons = {
+          spam:        `🚫 You're clicking too fast! Please slow down.`,
+          cooldown:    `⏳ You must wait **${check.remaining}s** before opening another ticket.`,
+          max_tickets: `📌 You already have **${check.count}/${check.max}** open ticket(s). Close one first.`
+        };
+        return interaction.reply({ content: reasons[check.reason] || 'Blocked.', flags: 64 });
+      }
+
+      // 2. Duplicate check
+      const alreadyOpen = await ticketService.hasOpenTicket(db, guild, user.id);
+      if (alreadyOpen) {
+        const existingName = await db.get(`guild_${guildId}.ticket.name_${user.id}`);
+        const existing = guild.channels.cache.find(c => c.name === existingName);
+        return interaction.reply({
+          content: `You already have an open ticket: ${existing || '`not found`'}. Please close it first.`,
+          flags: 64
+        });
+      }
+
+      // 3. Acknowledge and Create
+      await interaction.reply({
+        embeds: [premiumEmbed(client, {
+          title: `⏳  Creating Your Ticket...`,
+          description: `Please wait while we set up your support channel.`,
+          color: '#7C3AED'
+        })],
+        flags: 64
+      });
+
+      const channel = await ticketService.createTicket(client, interaction, categoryLabel, panelId);
+      if (!channel) {
+        return interaction.editReply({ content: '❌ Failed to create ticket. Please try again.' }).catch(() => null);
+      }
+
+      // 4. Finalize
+      await antiAbuseService.setCooldown(db, guildId, user.id);
+      return interaction.editReply({
+        embeds: [premiumEmbed(client, {
+          title: `✅  Ticket Created`,
+          description: `Your ticket is ready: ${channel}\n\n**Category:** \`${categoryLabel}\``,
+          color: '#10B981'
+        }).setFooter({ text: `${guild.name}  •  Wave Network`, iconURL: guild.iconURL({ dynamic: true }) })]
+      }).catch(() => null);
     }
 
     // ── ⭐ Rating Handler ───────────────────────────────────────────────────

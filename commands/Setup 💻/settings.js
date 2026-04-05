@@ -14,6 +14,7 @@ const {
     PermissionsBitField,
     TextInputStyle
   } = require('discord.js');
+const { premiumEmbed, errorMessage } = require('../../functions/functions.js');
 /**
  * Build the main settings dashboard embed with current guild configuration.
  */
