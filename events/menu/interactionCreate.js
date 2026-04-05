@@ -150,65 +150,22 @@ module.exports = async (client, interaction) => {
   if (interaction.customId === 'ticket_type_select') {
     const value = interaction.values[0];
 
-    // If OTHER: Show Modal
-    if (value === 'Other') {
-      const modal = new ModalBuilder()
-        .setCustomId(`ticket_create_modal:default:General Support`)
-        .setTitle(`🎫  Open a Support Ticket`);
+    // ALWAYS Show Modal regardless of selection (Login, Billing, Bug, Other)
+    const modal = new ModalBuilder()
+      .setCustomId(`ticket_create_modal:default:${value}`)
+      .setTitle(`🎫  ${value} Support Ticket`);
 
-      const reasonInput = new TextInputBuilder()
-        .setCustomId('ticket_reason')
-        .setLabel('Primary Reason / Issue Details')
-        .setPlaceholder('Describe exactly what you need help with...')
-        .setStyle(TextInputStyle.Paragraph)
-        .setMinLength(10)
-        .setMaxLength(1000)
-        .setRequired(true);
+    const reasonInput = new TextInputBuilder()
+      .setCustomId('ticket_reason')
+      .setLabel('Primary Reason / Issue Details')
+      .setPlaceholder(`Describe exactly what you need help with regarding ${value}...`)
+      .setStyle(TextInputStyle.Paragraph)
+      .setMinLength(10)
+      .setMaxLength(1000)
+      .setRequired(true);
 
-      modal.addComponents(new ActionRowBuilder().addComponents(reasonInput));
-      return await interaction.showModal(modal);
-    }
-
-    // IF NOT OTHER: Proceed with immediate creation
-    // 1. Anti-abuse checks
-    const check = await runAllChecks(db, interaction.guild, interaction.user.id);
-    if (!check.allowed) {
-      const reasons = {
-          spam:        `🚫 You're clicking too fast! Please slow down.`,
-          cooldown:    `⏳ You must wait **${check.remaining}s** before opening another ticket.`,
-          max_tickets: `📌 You already have **${check.count}/${check.max}** open ticket(s). Close one first.`
-      };
-      return interaction.reply({ content: reasons[check.reason] || 'Blocked.', flags: 64 });
-    }
-
-    // 2. Duplicate check
-    const alreadyOpen = await hasOpenTicket(db, interaction.guild, interaction.user.id);
-    if (alreadyOpen) {
-      const existingName = await db.get(`guild_${interaction.guild.id}.ticket.name_${interaction.user.id}`);
-      const existing = interaction.guild.channels.cache.find(c => c.name === existingName);
-      return interaction.reply({
-        content: `You already have an open ticket: ${existing || '`not found`'}. Please close it first.`,
-        flags: 64
-      });
-    }
-
-    // 3. Acknowledge and Create
-    await loadingState(interaction, 'Creating your ticket...');
-
-    const channel = await createTicket(client, interaction, value, null, `User selected: ${value}`);
-    if (!channel) {
-      return interaction.editReply({ content: '❌ Failed to create ticket. Please try again.' }).catch(() => null);
-    }
-
-    // 4. Finalize
-    await setCooldown(db, interaction.guild.id, interaction.user.id);
-    return interaction.editReply({
-      embeds: [premiumEmbed(client, {
-        title: `✅  Ticket Created`,
-        description: `Your ticket is ready: ${channel}\n\n**Category:** \`${value}\``,
-        color: '#10B981'
-      }).setFooter({ text: `${interaction.guild.name}  •  Wave Network`, iconURL: interaction.guild.iconURL({ dynamic: true }) })]
-    }).catch(() => null);
+    modal.addComponents(new ActionRowBuilder().addComponents(reasonInput));
+    return await interaction.showModal(modal);
   }
 
   // ─────────────────────────────────────────────────────────────────────────

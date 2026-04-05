@@ -91,6 +91,11 @@ module.exports = {
       options: [
         { name: 'panel-name', description: 'Name of the panel to delete.', type: ApplicationCommandOptionType.String, required: true }
       ]
+    },
+    {
+      name: 'setup',
+      description: 'One-click deployment of the Premium Support Panel template.',
+      type: ApplicationCommandOptionType.Subcommand
     }
   ],
 
@@ -305,6 +310,56 @@ module.exports = {
         })],
         flags: 64
       });
+    }
+
+    // ─── /panel setup ───────────────────────────────────────────────────────
+    if (sub === 'setup') {
+      await interaction.deferReply({ flags: 64 });
+      const panels = (await db.get(guildKey)) || [];
+      const defaultName = 'Premium Support';
+      
+      if (panels.find(p => p.name === defaultName)) {
+         return errorMessage(client, interaction, `A panel named **${defaultName}** already exists.`);
+      }
+
+      const newPanel = {
+        id: crypto.randomBytes(4).toString('hex'),
+        name: defaultName,
+        embed: {
+          title: '🔱  Wave Network | Support Portal',
+          description: 'Welcome to our specialized support hub. Please select a category below to get started.',
+          color: '#7C3AED'
+        },
+        categories: [
+          { label: '🔐 Login Issue', value: 'Login Issue', description: 'Difficulty logging into the server/network.', emoji: '🔐' },
+          { label: '💳 Billing', value: 'Billing', description: 'Store, billing, or donation related support.', emoji: '💳' },
+          { label: '🐛 Report Bug', value: 'Report Bug', description: 'Report technical glitches or network issues.', emoji: '🐛' },
+          { label: '⚙️ General Support', value: 'General Support', description: 'Basic help and general questions.', emoji: '⚙️' },
+          { label: '🔘 Other', value: 'Other', emoji: '🔘', description: 'Categorized issue not listed above.' }
+        ]
+      };
+
+      panels.push(newPanel);
+      await db.set(guildKey, panels);
+
+      const embed = premiumEmbed(client, {
+        title: '✅  Premium Setup Complete',
+        description: [
+           'The **Premium Support** template has been successfully generated.',
+           '',
+           '**Includes:** `🛠️ Support`, `💳 Billing`, `🐛 Bug Reports`.',
+           '',
+           'Click the button below to **Deploy** this immediately!'
+        ].join('\n'),
+        color: client.colors?.success
+      });
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(`setup_deploy_auto:${newPanel.name}`).setLabel('Deploy (Buttons)').setEmoji('🔘').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId(`setup_deploy_auto_menu:${newPanel.name}`).setLabel('Deploy (Select Menu)').setEmoji('📂').setStyle(ButtonStyle.Primary)
+      );
+
+      return interaction.editReply({ embeds: [embed], components: [row] });
     }
   }
 };

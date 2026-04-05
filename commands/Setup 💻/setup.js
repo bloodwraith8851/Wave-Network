@@ -81,7 +81,10 @@ module.exports = {
                 await i.update({ embeds: [embed], components: [row] });
             }
 
-            if (i.customId === 'back_main') await i.update({ embeds: [], components: [] }).then(() => renderMain(i));
+            if (i.customId === 'back_main') {
+                await renderMain(i);
+                return;
+            }
 
             // Role Sub-selection
             if (i.customId.startsWith('set_') && i.customId.endsWith('_role')) {

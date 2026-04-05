@@ -7,6 +7,7 @@ const {
   ActionRowBuilder, 
   ButtonBuilder, 
   ButtonStyle, 
+  StringSelectMenuBuilder,
   ModalBuilder, 
   TextInputStyle, 
   TextInputBuilder, 
@@ -184,8 +185,9 @@ module.exports = async (client, interaction) => {
           .setPlaceholder('🎫  Select a ticket type...')
           .addOptions([
             { label: 'Login Issue', value: 'Login Issue', emoji: '🔐', description: 'Difficulty logging into the server/network.' },
-            { label: 'Payment Issue', value: 'Payment Issue', emoji: '💳', description: 'Store, billing, or donation related support.' },
-            { label: 'General Support', value: 'General Support', emoji: '⚙️', description: 'Basic questions or common issues.' },
+            { label: 'Billing', value: 'Billing', emoji: '💳', description: 'Store, billing, or donation related support.' },
+            { label: 'Report Bug', value: 'Report Bug', emoji: '🐛', description: 'Report technical glitches or network issues.' },
+            { label: 'General Support', value: 'General Support', emoji: '⚙️', description: 'Basic help and general questions.' },
             { label: 'Other', value: 'Other', emoji: '🔘', description: 'Custom problem not listed above.' }
           ]);
 
@@ -234,6 +236,65 @@ module.exports = async (client, interaction) => {
       });
 
       return interaction.update({ embeds: [embed], components: [] });
+    }
+
+    // ── 🚀 Auto-Deploy Panel (from /panel setup) ─────────────────────────────
+    if (interaction.customId.startsWith('setup_deploy_auto')) {
+      if (await permissionService.requirePermission(db, guild, member, 'panel.manage', client.config, interaction, errorMessage)) return;
+
+      const parts = interaction.customId.split(':');
+      const prefix = parts[0];
+      const pName = parts[1]; // The panel name (Premium Support)
+      const isMenu = prefix.endsWith('_menu');
+
+      const guildKey = `guild_${guild.id}.panels`;
+      const panels = (await db.get(guildKey)) || [];
+      const panel  = panels.find(p => p.name === pName);
+
+      if (!panel) return errorMessage(client, interaction, `Panel \`${pName}\` not found in database.`);
+
+      // 1. Build the premium panel embed
+      const panelEmbed = premiumEmbed(client, {
+          title: `🔱  ${panel.embed.title || 'Support Center'}`,
+          description: panel.embed.description,
+          color: panel.embed.color || client.colors?.primary,
+          fields: [
+              { name: '🕒  Avg. Response', value: '`⚡ < 15 Mins`', inline: true },
+              { name: '🛡️  Privacy', value: '`🔒 Encrypted`', inline: true },
+              { name: '👥  Active Staff', value: '`🛡️ Available`', inline: true }
+          ]
+      })
+      .setThumbnail(guild.iconURL({ dynamic: true }))
+      .setFooter({ text: `${guild.name}  •  Premium Support Hub`, iconURL: guild.iconURL({ dynamic: true }) });
+
+      // 2. Build Components
+      const row = new ActionRowBuilder();
+      if (isMenu) {
+          const menu = new StringSelectMenuBuilder()
+              .setCustomId(`panel_select`)
+              .setPlaceholder('🎫  Select a ticket type...')
+              .addOptions(panel.categories.map(c => ({
+                  label: c.label,
+                  value: `${panel.id}__${c.value}`,
+                  description: c.description || '',
+                  emoji: c.emoji || null
+              })));
+          row.addComponents(menu);
+      } else {
+          // Add up to 5 buttons (API limit)
+          panel.categories.slice(0, 5).forEach(c => {
+              row.addComponents(
+                  new ButtonBuilder()
+                      .setCustomId(`panel_button:${panel.id}:${c.value}`)
+                      .setLabel(c.label)
+                      .setStyle(ButtonStyle.Success)
+                      .setEmoji(c.emoji || '🎫')
+              );
+          });
+      }
+
+      await interaction.channel.send({ embeds: [panelEmbed], components: [row] });
+      return interaction.reply({ content: `✅  Panel \`${pName}\` has been deployed successfully!`, flags: 64 });
     }
 
     // ── ✖️ Cancel action ──────────────────────────────────────────────────────
