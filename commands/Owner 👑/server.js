@@ -91,7 +91,7 @@ collector.on('end', async ()=>{
 })
       }break;
       case "leave":{
-  interaction.reply({ content: `Trying to leave guilds with less than 50 members...`, ephemeral: true, fetchReply: true })
+  interaction.reply({ content: `Trying to leave guilds with less than 50 members...`, ephemeral: true, withResponse: true })
    .then(()=>{
     try{
     client.guilds.cache.forEach(guild=>{

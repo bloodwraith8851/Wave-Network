@@ -67,12 +67,12 @@ try {
     await interaction.deferReply();
 
     // Close channel perms
-    const perms = [{ id: interaction.guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] }];
+    const perms = [{ id: interaction.guild.roles.everyone.id, deny: [PermissionsBitField.Flags.ViewChannel] }];
     if (ownerId) perms.push({ id: ownerId, deny: [PermissionsBitField.Flags.ViewChannel] });
     if (adminRole) perms.push({ id: adminRole, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
     if (modRole && modRole !== adminRole) perms.push({ id: modRole, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
     if (staffRole && staffRole !== adminRole && staffRole !== modRole) perms.push({ id: staffRole, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
-    await interaction.channel.permissionOverwrites.set(perms).catch(() => null);
+    await interaction.channel.permissionOverwrites.set(perms.filter(p => p && p.id)).catch(() => null);
 
     // Rich closed embed
     const closeTs  = Math.floor(Date.now() / 1000);

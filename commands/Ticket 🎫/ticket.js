@@ -275,7 +275,7 @@ module.exports = {
           flags: 64,
           embeds: [new EmbedBuilder().setFooter({ text: `Setup Ticket • Requested by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) }).setTitle(`${client.emotes.setup}| **Ticket System Setting**`).setColor(client.colors.none).setDescription(`**setup your guild ticket system in ${channel} with default or customize.**`).setThumbnail(interaction.guild.iconURL({ dynamic: true }))],
           components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('ticket_default').setEmoji(client.emotes.system).setLabel("Setup Ticket To Default").setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId('ticket_setup_custom').setEmoji(client.emotes.hamer).setLabel("Setup Ticket To Customize").setStyle(ButtonStyle.Success)), new ActionRowBuilder().addComponents([new ButtonBuilder().setStyle(ButtonStyle.Link).setEmoji(client.emotes.help).setLabel("Support").setURL(client.config.discord.server_support)])],
-          fetchReply: true
+          withResponse: true
         }).then(async(msg)=>{
         let time = 120000;
         const collector = msg.createMessageComponentCollector({ time: time });

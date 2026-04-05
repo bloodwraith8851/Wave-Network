@@ -119,7 +119,7 @@ module.exports = {
         .setPlaceholder('📖  Select a question...')
         .addOptions(browseItems.map(f => ({ label: f.title.slice(0, 80), value: f.id, emoji: f.emoji })));
 
-      const msg = await interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu)], fetchReply: true });
+      const msg = await interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu)], withResponse: true });
 
       const collector = msg.createMessageComponentCollector({ time: 120000 });
       collector.on('collect', async m => {

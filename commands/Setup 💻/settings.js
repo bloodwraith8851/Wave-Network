@@ -57,7 +57,7 @@ const {
             { name: `Guild Ticket Menu Option:`, value: `${await db.has(`guild_${interaction.guild.id}.ticket.menu_option`) ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply}${(await db.get(`guild_${interaction.guild.id}.ticket.menu_option`)).map(o => `**Name:** \`${o.value}\` | **Emoji:** ${o.emoji ? o.emoji : "none"}`).join(`\n${client.emotes.reply}`)}` : `${client.emotes.reply} Disabled ${client.emotes.disable1}${client.emotes.disable2}`}`, inline: false }
           ]).setFooter({ text: `Setting • Requested By ${interaction.user.tag} `, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(interaction.guild.iconURL({ dynamic: true })).setTimestamp()],
           components: [new ActionRowBuilder().addComponents(menu), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setDisabled(true).setEmoji(client.emotes.home).setCustomId("home_page"))],
-          fetchReply: true
+          withResponse: true
         }).then(async(msg) =>{
           const collector = msg.createMessageComponentCollector({ time: time });
           

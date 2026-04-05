@@ -7,6 +7,7 @@ const { ChannelType, PermissionsBitField, EmbedBuilder, ActionRowBuilder, Button
 const {
   premiumEmbed,
   errorMessage,
+  ticketControlRow
 } = require(`${process.cwd()}/functions/functions`);
 const cache = require('./cacheService');
 const Transcript = require('discord-html-transcripts');

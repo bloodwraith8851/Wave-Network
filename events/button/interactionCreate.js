@@ -68,16 +68,16 @@ module.exports = async (client, interaction) => {
       const perms = {
         close: [
           { id: ticket_control, deny: [PermissionsBitField.Flags.ViewChannel] },
-          { id: interaction.guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] }
+          { id: interaction.guild.roles.everyone.id, deny: [PermissionsBitField.Flags.ViewChannel] }
         ],
         open: [
           { id: ticket_control, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] },
-          { id: interaction.guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] }
+          { id: interaction.guild.roles.everyone.id, deny: [PermissionsBitField.Flags.ViewChannel] }
         ],
         invite: [
           { id: ticket_control, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] },
           { id: null, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] }, // new_member placeholder
-          { id: interaction.guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] }
+          { id: interaction.guild.roles.everyone.id, deny: [PermissionsBitField.Flags.ViewChannel] }
         ]
       };
       if (admin_role) {
@@ -95,7 +95,7 @@ module.exports = async (client, interaction) => {
         perms.open.push({ id: staff_role, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
         perms.invite.push({ id: staff_role, allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel] });
       }
-      return perms[type] || [];
+      return (perms[type] || []).filter(p => p && p.id);
     };
 
     // ─────────────────────────────────────────────────────────────────────────
