@@ -91,7 +91,9 @@ module.exports = {
 
       if (b.thumbnail) embed.setThumbnail(b.thumbnail);
 
-      return interaction.reply({ embeds: [embed], ephemeral: true });
+      if (b.thumbnail) embed.setThumbnail(b.thumbnail);
+
+      return interaction.reply({ embeds: [embed], flags: 64 });
     }
 
     // ── SET ──────────────────────────────────────────────────────────────────
@@ -118,9 +120,9 @@ module.exports = {
         embeds: [premiumEmbed(client, {
           title: '✅  Branding Updated',
           description: `**${prop}** has been updated to:\n\`\`\`${value}\`\`\`\nRun \`/branding preview\` to see how it looks.`,
-          color: prop === 'color' ? value : '#10B981',
+          color: prop === 'color' ? value : (client.colors?.success || '#10B981'),
         }).setFooter({ text: `Wave Network  •  Branding`, iconURL: interaction.guild.iconURL({ dynamic: true }) })],
-        ephemeral: true,
+        flags: 64,
       });
     }
 
@@ -136,9 +138,9 @@ module.exports = {
         embeds: [premiumEmbed(client, {
           title: '🔄  Branding Reset',
           description: 'All branding settings have been reset to **default Wave Network** appearance.',
-          color: DEFAULT_COLOR,
+          color: client.colors?.primary || DEFAULT_COLOR,
         }).setFooter({ text: DEFAULT_FOOTER, iconURL: interaction.guild.iconURL({ dynamic: true }) })],
-        ephemeral: true,
+        flags: 64,
       });
     }
   },

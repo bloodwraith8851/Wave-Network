@@ -86,9 +86,9 @@ module.exports = {
             `> 🟡 Warning fires at **75%** of target`,
             `> 🔴 Breach alert fires at **100%** of target`,
           ].join('\n'),
-          color: '#F59E0B',
+          color: client.colors?.warning || '#F59E0B',
         }).setFooter({ text: 'Wave Network  •  SLA Monitor', iconURL: interaction.guild.iconURL({ dynamic: true }) })],
-        ephemeral: true,
+        flags: 64,
       });
     }
 
@@ -103,15 +103,15 @@ module.exports = {
         embeds: [premiumEmbed(client, {
           title: '✅  SLA Target Set',
           description: `**${category === 'default' ? 'Default' : `Category: ${category}`}** SLA target set to **${fmtMinutes(minutes)}**.\n\nWarning fires at \`${fmtMinutes(Math.round(minutes * 0.75))}\`, breach at \`${fmtMinutes(minutes)}\`.`,
-          color: '#10B981',
+          color: client.colors?.success || '#10B981',
         }).setFooter({ text: 'Wave Network  •  SLA', iconURL: interaction.guild.iconURL({ dynamic: true }) })],
-        ephemeral: true,
+        flags: 64,
       });
     }
 
     // ── CHECK ────────────────────────────────────────────────────────────────
     if (sub === 'check') {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: 64 });
       await slaSvc.runSLACheck(client, interaction.guild);
       return interaction.editReply({
         embeds: [premiumEmbed(client, {

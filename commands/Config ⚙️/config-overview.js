@@ -31,7 +31,7 @@ module.exports = {
     const denied = await permSvc.requirePermission(db, interaction.guild, interaction.member, 'config.view', client.config, interaction, errorMessage);
     if (denied) return;
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: 64 });
 
     // ── Collect all settings ──────────────────────────────────────────────────
     const [

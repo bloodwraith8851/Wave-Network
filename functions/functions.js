@@ -15,20 +15,60 @@ const {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Creates a premium-styled EmbedBuilder.
+ * Creates a premium-styled EmbedBuilder with unified branding.
  * @param {object} client
- * @param {{ title?: string, description?: string, color?: string }} options
+ * @param {{ title?: string, description?: string, color?: string, thumbnail?: string, image?: string, fields?: any[] }} options
  * @returns {EmbedBuilder}
  */
-function premiumEmbed(client, { title, description, color } = {}) {
+function premiumEmbed(client, { title, description, color, thumbnail, image, fields } = {}) {
   const embed = new EmbedBuilder()
-    .setColor(color || '#7C3AED')
-    .setTimestamp();
+    .setColor(color || client.colors?.primary || '#7C3AED')
+    .setTimestamp()
+    .setFooter({
+      text: client.embed?.footerText || 'Wave Network • Premium Support',
+      iconURL: client.embed?.footerIcon || null
+    });
 
   if (title) embed.setTitle(title);
   if (description) embed.setDescription(description);
+  if (thumbnail) embed.setThumbnail(thumbnail);
+  if (image) embed.setImage(image);
+  if (fields && fields.length) embed.addFields(fields);
 
   return embed;
+}
+
+/**
+ * Sends a consistent loading state message.
+ * @param {import('discord.js').Interaction} interaction
+ * @param {string} text
+ */
+async function loadingState(interaction, text = 'Processing request...') {
+  const embed = new EmbedBuilder()
+    .setColor('#2B2D31')
+    .setDescription(`<a:loading:1234567890> ${text}`); // Note: Replace with actual emoji ID if possible
+
+  const payload = { embeds: [embed], components: [], flags: 64 };
+  
+  if (interaction.deferred || interaction.replied) {
+    return await interaction.editReply(payload).catch(() => null);
+  }
+  return await interaction.reply(payload).catch(() => null);
+}
+
+/**
+ * Sends a consistent success message.
+ */
+async function successMessage(client, interaction, text) {
+  const embed = premiumEmbed(client, {
+    title: '✅  Success',
+    description: text,
+    color: client.colors?.success || '#10B981'
+  });
+  
+  const payload = { embeds: [embed], components: [], flags: 64 };
+  if (interaction.deferred || interaction.replied) return await interaction.editReply(payload).catch(() => null);
+  return await interaction.reply(payload).catch(() => null);
 }
 
 /**

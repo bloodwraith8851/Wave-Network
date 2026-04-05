@@ -120,9 +120,9 @@ module.exports = {
         embeds: [premiumEmbed(client, {
           title: '✅  Blacklist Updated',
           description: `${isRegex ? '🔤 Regex' : '📝 Keyword'} \`${pattern}\` added.\n\n*Messages containing this pattern will be flagged.*`,
-          color: '#10B981',
+          color: client.colors?.success || '#10B981',
         }).setFooter({ text: `${list.length}/${MAX_KEYWORDS}  •  Wave Network`, iconURL: interaction.guild.iconURL({ dynamic: true }) })],
-        ephemeral: true,
+        flags: 64,
       });
     }
 
@@ -135,9 +135,9 @@ module.exports = {
       await db.set(`guild_${guildId}.blacklist_v2`, filtered);
       await auditSvc.log(db, guildId, interaction.user.id, 'blacklist.remove', { pattern });
       return interaction.reply({
-        embeds: [premiumEmbed(client, { title: '🗑️  Pattern Removed', description: `\`${pattern}\` has been removed from the blacklist.`, color: '#EF4444' })
+        embeds: [premiumEmbed(client, { title: '🗑️  Pattern Removed', description: `\`${pattern}\` has been removed from the blacklist.`, color: client.colors?.error || '#EF4444' })
           .setFooter({ text: 'Wave Network  •  Blacklist', iconURL: interaction.guild.iconURL({ dynamic: true }) })],
-        ephemeral: true,
+        flags: 64,
       });
     }
 
@@ -146,8 +146,8 @@ module.exports = {
       const list = await getList(db, guildId);
       if (!list.length) {
         return interaction.reply({
-          embeds: [premiumEmbed(client, { title: '🚫  Blacklist', description: 'No blacklisted patterns.\n\nAdd with `/blacklist add <pattern>`.', color: '#6B7280' })],
-          ephemeral: true,
+          embeds: [premiumEmbed(client, { title: '🚫  Blacklist', description: 'No blacklisted patterns.\n\nAdd with `/blacklist add <pattern>`.', color: client.colors?.none || '#6B7280' })],
+          flags: 64,
         });
       }
       const lines = list.slice(0, PAGE_SIZE).map((e, i) =>
@@ -157,9 +157,9 @@ module.exports = {
         embeds: [premiumEmbed(client, {
           title: `🚫  Blacklist  ·  ${list.length}/${MAX_KEYWORDS}`,
           description: lines.join('\n') + (list.length > PAGE_SIZE ? `\n*…and ${list.length - PAGE_SIZE} more*` : ''),
-          color: '#7C3AED',
+          color: client.colors?.primary || '#7C3AED',
         }).setFooter({ text: `🔤 = regex  📝 = keyword  •  Wave Network`, iconURL: interaction.guild.iconURL({ dynamic: true }) })],
-        ephemeral: true,
+        flags: 64,
       });
     }
 
@@ -175,9 +175,9 @@ module.exports = {
           description: result.matched
             ? `The message would be **flagged**.\n\n**Matched pattern:** \`${result.pattern}\` (${result.isRegex ? 'regex' : 'keyword'})\n**Message:** \`${message.slice(0, 100)}\``
             : `No blacklisted patterns found in:\`${message.slice(0, 100)}\``,
-          color: result.matched ? '#EF4444' : '#10B981',
+          color: result.matched ? (client.colors?.error || '#EF4444') : (client.colors?.success || '#10B981'),
         }).setFooter({ text: `Wave Network  •  Blacklist Test`, iconURL: interaction.guild.iconURL({ dynamic: true }) })],
-        ephemeral: true,
+        flags: 64,
       });
     }
 
@@ -192,9 +192,9 @@ module.exports = {
         embeds: [premiumEmbed(client, {
           title: '⚠️  Blacklist Cleared',
           description: `All **${list.length}** blacklisted patterns have been removed.`,
-          color: '#EF4444',
+          color: client.colors?.error || '#EF4444',
         }).setFooter({ text: 'Wave Network  •  Blacklist', iconURL: interaction.guild.iconURL({ dynamic: true }) })],
-        ephemeral: true,
+        flags: 64,
       });
     }
   },

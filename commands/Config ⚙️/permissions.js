@@ -185,7 +185,7 @@ module.exports = {
         })
         .setTimestamp();
 
-      return interaction.reply({ embeds: [embed], ephemeral: true });
+      return interaction.reply({ embeds: [embed], flags: 64 });
     }
 
     // ── SET-ROLE ───────────────────────────────────────────────────────────
@@ -210,10 +210,10 @@ module.exports = {
       const embed = premiumEmbed(client, {
         title: `✅  Permission Role Updated`,
         description: `**${permSvc.LEVEL_EMOJIS[LEVELS[level]]} ${level.charAt(0).toUpperCase() + level.slice(1)}** level is now assigned to ${role}.\n\nMembers with this role will have **Level ${LEVELS[level]}** permissions.`,
-        color: '#10B981',
+        color: client.colors?.success || '#10B981',
       }).setFooter({ text: `Wave Network  •  Permission System`, iconURL: interaction.guild.iconURL({ dynamic: true }) });
 
-      return interaction.reply({ embeds: [embed], ephemeral: true });
+      return interaction.reply({ embeds: [embed], flags: 64 });
     }
 
     // ── REMOVE-ROLE ────────────────────────────────────────────────────────
@@ -229,10 +229,10 @@ module.exports = {
       const embed = premiumEmbed(client, {
         title: `🗑️  Permission Role Removed`,
         description: `Role assignment for **${level}** has been cleared.\n\nFallback: Discord's built-in permissions will now be used for this level.`,
-        color: '#EF4444',
+        color: client.colors?.error || '#EF4444',
       }).setFooter({ text: `Wave Network  •  Permission System`, iconURL: interaction.guild.iconURL({ dynamic: true }) });
 
-      return interaction.reply({ embeds: [embed], ephemeral: true });
+      return interaction.reply({ embeds: [embed], flags: 64 });
     }
 
     // ── SET-FEATURE ────────────────────────────────────────────────────────
@@ -264,10 +264,10 @@ module.exports = {
           `**Required level:** ${permSvc.LEVEL_EMOJIS[level]} **${permSvc.LEVEL_NAMES[level]}** (Level ${level})`,
           `**Default was:** ${permSvc.LEVEL_EMOJIS[defaultLevel]} ${permSvc.LEVEL_NAMES[defaultLevel]} (Level ${defaultLevel})`,
         ].join('\n'),
-        color: '#3B82F6',
+        color: client.colors?.info || '#3B82F6',
       }).setFooter({ text: `Wave Network  •  Permission System`, iconURL: interaction.guild.iconURL({ dynamic: true }) });
 
-      return interaction.reply({ embeds: [embed], ephemeral: true });
+      return interaction.reply({ embeds: [embed], flags: 64 });
     }
 
     // ── RESET-FEATURE ──────────────────────────────────────────────────────
@@ -284,10 +284,10 @@ module.exports = {
       const embed = premiumEmbed(client, {
         title: `🔄  Feature Permission Reset`,
         description: `Feature \`${feature}\` has been reset to its default level:\n${permSvc.LEVEL_EMOJIS[defaultLevel]} **${permSvc.LEVEL_NAMES[defaultLevel]}** (Level ${defaultLevel})`,
-        color: '#8B5CF6',
+        color: client.colors?.primary || '#8B5CF6',
       }).setFooter({ text: `Wave Network  •  Permission System`, iconURL: interaction.guild.iconURL({ dynamic: true }) });
 
-      return interaction.reply({ embeds: [embed], ephemeral: true });
+      return interaction.reply({ embeds: [embed], flags: 64 });
     }
   },
 };

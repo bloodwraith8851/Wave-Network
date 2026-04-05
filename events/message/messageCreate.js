@@ -15,10 +15,59 @@ const {
 module.exports = async (client, message) => {
   const db = client.db;
   if (message.author.bot || !message.guild) return;
+
+  const guildId = message.guild.id;
+  const channelId = message.channel.id;
   
   // ── Activity Tracking for Tickets ──────────────────────────────────────────
   if (message.channel.name.startsWith('ticket-')) {
-    await db.set(`guild_${message.guild.id}.ticket.last_activity_at_${message.channel.id}`, Date.now());
+    await db.set(`guild_${guildId}.ticket.last_activity_at_${channelId}`, Date.now());
+
+    // Check if author is Staff
+    const permSvc = require(`${process.cwd()}/services/permissionService`);
+    const analyticsSvc = require(`${process.cwd()}/services/analyticsService`);
+    const memberLevel = await permSvc.getMemberLevel(db, message.guild, message.member, client.config);
+
+    if (memberLevel >= 1) {
+      // It's a staff member. Check for First Response.
+      const firstRespKey = `guild_${guildId}.ticket.first_response_at_${channelId}`;
+      const firstResp = await db.get(firstRespKey);
+
+      if (!firstResp) {
+        const createdAt = await db.get(`guild_${guildId}.ticket.created_at_${channelId}`);
+        if (createdAt) {
+          const now = Date.now();
+          const duration = now - createdAt;
+
+          await db.set(firstRespKey, now);
+          await analyticsSvc.trackEvent(db, guildId, 'first_response', {
+            channelId,
+            staffId: message.author.id,
+            responseTime: duration,
+            timestamp: now
+          });
+
+          // Log to ModLog if configured
+          const logId = await db.get(`guild_${guildId}.modlog`);
+          if (logId) {
+            const logChannel = message.guild.channels.cache.get(logId);
+            if (logChannel) {
+              const { premiumEmbed } = require(`${process.cwd()}/functions/functions`);
+              const embed = premiumEmbed(client, {
+                title: '⏱️  First Response Tracked',
+                description: [
+                  `**Staff:** ${message.author}`,
+                  `**Ticket:** ${message.channel}`,
+                  `**Time:** \`${analyticsSvc.formatDuration(duration)}\``
+                ].join('\n'),
+                color: client.colors?.info || '#3B82F6'
+              }).setFooter({ text: `Wave Network  •  Analytics`, iconURL: message.guild.iconURL({ dynamic: true }) });
+              await logChannel.send({ embeds: [embed] }).catch(() => null);
+            }
+          }
+        }
+      }
+    }
   }
 
   // ── Keyword Blacklist Auto-Moderation ──────────────────────────────────────

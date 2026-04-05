@@ -89,9 +89,9 @@ module.exports = {
             ``,
             `Use \`/webhook test\` to send a test payload.`,
           ].join('\n'),
-          color: '#10B981',
+          color: client.colors?.success || '#10B981',
         }).setFooter({ text: 'Wave Network  •  Webhooks', iconURL: interaction.guild.iconURL({ dynamic: true }) })],
-        ephemeral: true,
+        flags: 64,
       });
     }
 
@@ -103,9 +103,9 @@ module.exports = {
           embeds: [premiumEmbed(client, {
             title: '🔗  Webhooks',
             description: 'No webhooks configured yet.\n\nAdd one with `/webhook add <url>`.',
-            color: '#6B7280',
+            color: client.colors?.none || '#6B7280',
           })],
-          ephemeral: true,
+          flags: 64,
         });
       }
       const lines = webhooks.map((w, i) =>
@@ -115,9 +115,9 @@ module.exports = {
         embeds: [premiumEmbed(client, {
           title: `🔗  Webhooks  ·  ${webhooks.length}/${webhookSvc.MAX_WEBHOOKS}`,
           description: lines.join('\n\n'),
-          color: '#7C3AED',
+          color: client.colors?.primary || '#7C3AED',
         }).setFooter({ text: 'Wave Network  •  Webhooks', iconURL: interaction.guild.iconURL({ dynamic: true }) })],
-        ephemeral: true,
+        flags: 64,
       });
     }
 
@@ -128,9 +128,9 @@ module.exports = {
       if (!removed) return errorMessage(client, interaction, `No webhook found matching \`${urlOrId}\`.`);
       await auditSvc.log(db, guildId, interaction.user.id, 'webhook.remove', { urlOrId });
       return interaction.reply({
-        embeds: [premiumEmbed(client, { title: '🗑️  Webhook Removed', description: `Webhook \`${urlOrId}\` has been deleted.`, color: '#EF4444' })
+        embeds: [premiumEmbed(client, { title: '🗑️  Webhook Removed', description: `Webhook \`${urlOrId}\` has been deleted.`, color: client.colors?.error || '#EF4444' })
           .setFooter({ text: 'Wave Network  •  Webhooks', iconURL: interaction.guild.iconURL({ dynamic: true }) })],
-        ephemeral: true,
+        flags: 64,
       });
     }
 
@@ -141,7 +141,7 @@ module.exports = {
       const target   = webhooks.find(w => w.url === urlOrId || String(w.id) === urlOrId);
       if (!target) return errorMessage(client, interaction, `No webhook found matching \`${urlOrId}\`.`);
 
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: 64 });
 
       const testPayload = {
         event: 'test',

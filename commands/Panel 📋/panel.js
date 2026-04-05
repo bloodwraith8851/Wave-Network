@@ -130,10 +130,10 @@ module.exports = {
           `Now add categories with \`/panel add-category panel-name:${pName}\``,
           `Then send it with \`/panel send panel-name:${pName}\``
         ].join('\n'),
-        color: '#10B981'
+        color: client.colors?.success || '#10B981'
       }).setFooter({ text: `Wave Network  •  Panel System`, iconURL: interaction.guild.iconURL({ dynamic: true }) });
 
-      return interaction.reply({ embeds: [embed], ephemeral: true });
+      return interaction.reply({ embeds: [embed], flags: 64 });
     }
 
     // ─── /panel add-category ────────────────────────────────────────────────
@@ -170,10 +170,10 @@ module.exports = {
           ``,
           `Panel now has **${panel.categories.length}** categor${panel.categories.length === 1 ? 'y' : 'ies'}.`
         ].join('\n'),
-        color: '#10B981'
+        color: client.colors?.success || '#10B981'
       }).setFooter({ text: `Wave Network  •  Panel System`, iconURL: interaction.guild.iconURL({ dynamic: true }) });
 
-      return interaction.reply({ embeds: [embed], ephemeral: true });
+      return interaction.reply({ embeds: [embed], flags: 64 });
     }
 
     // ─── /panel send ────────────────────────────────────────────────────────
@@ -217,9 +217,9 @@ module.exports = {
       const confirm = premiumEmbed(client, {
         title: `✅  Panel Sent`,
         description: `Panel \`${panel.name}\` sent to ${target}.`,
-        color: '#10B981'
+        color: client.colors?.success || '#10B981'
       });
-      return interaction.reply({ embeds: [confirm], ephemeral: true });
+      return interaction.reply({ embeds: [confirm], flags: 64 });
     }
 
     // ─── /panel list ────────────────────────────────────────────────────────
@@ -227,8 +227,8 @@ module.exports = {
       const panels = (await db.get(guildKey)) || [];
       if (panels.length === 0) {
         return interaction.reply({
-          embeds: [premiumEmbed(client, { title: '📋  No Panels', description: 'Create your first panel with `/panel create`.', color: '#7C3AED' })],
-          ephemeral: true
+          embeds: [premiumEmbed(client, { title: '📋  No Panels', description: 'Create your first panel with `/panel create`.', color: client.colors?.primary || '#7C3AED' })],
+          flags: 64
         });
       }
 
@@ -240,9 +240,9 @@ module.exports = {
         embeds: [premiumEmbed(client, {
           title: `📋  Server Panels (${panels.length}/10)`,
           description: lines,
-          color: '#7C3AED'
+          color: client.colors?.primary || '#7C3AED'
         }).setFooter({ text: `Wave Network  •  Panel System`, iconURL: interaction.guild.iconURL({ dynamic: true }) })],
-        ephemeral: true
+        flags: 64
       });
     }
 
@@ -260,9 +260,9 @@ module.exports = {
         embeds: [premiumEmbed(client, {
           title: `🗑️  Panel Deleted`,
           description: `Panel \`${pName}\` has been deleted.`,
-          color: '#EF4444'
+          color: client.colors?.error || '#EF4444'
         })],
-        ephemeral: true
+        flags: 64
       });
     }
   }

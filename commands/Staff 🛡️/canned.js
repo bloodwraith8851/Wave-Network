@@ -80,9 +80,9 @@ module.exports = {
         embeds: [premiumEmbed(client, {
           title: '✅  Canned Response Saved',
           description: `Response \`${result.msg}\` has been saved.\n\nUse it with \`/canned use ${result.msg}\`.`,
-          color: '#10B981',
+          color: client.colors?.success || '#10B981',
         }).setFooter({ text: `Wave Network  •  ${interaction.guild.name}`, iconURL: interaction.guild.iconURL({ dynamic: true }) })],
-        ephemeral: true,
+        flags: 64,
       });
     }
 
@@ -91,7 +91,7 @@ module.exports = {
       const list = await cannedSvc.getAll(db, guildId);
       if (!list.length) {
         return interaction.reply({
-          embeds: [premiumEmbed(client, { title: '📋  Canned Responses', description: 'No canned responses saved yet.\n\nUse `/canned add <name> <content>` to create one.', color: '#6B7280' })],
+          embeds: [premiumEmbed(client, { title: '📋  Canned Responses', description: 'No canned responses saved yet.\n\nUse `/canned add <name> <content>` to create one.', color: client.colors?.none || '#6B7280' })],
           flags: 64,
         });
       }
@@ -100,11 +100,11 @@ module.exports = {
         embeds: [premiumEmbed(client, {
           title: `📋  Canned Responses  ·  ${list.length}/${cannedSvc.MAX_RESPONSES}`,
           description: lines.join('\n'),
-          color: '#7C3AED',
+          color: client.colors?.primary || '#7C3AED',
         })
           .addFields([{ name: '💡 Variables', value: '`{user}` `{ticket}` `{category}` `{staff}`', inline: false }])
           .setFooter({ text: `Wave Network  •  ${interaction.guild.name}`, iconURL: interaction.guild.iconURL({ dynamic: true }) })],
-        ephemeral: true,
+        flags: 64,
       });
     }
 
@@ -140,9 +140,9 @@ module.exports = {
         embeds: [premiumEmbed(client, {
           title: '🗑️  Canned Response Deleted',
           description: `Response \`${name}\` has been removed.`,
-          color: '#EF4444',
+          color: client.colors?.error || '#EF4444',
         }).setFooter({ text: `Wave Network  •  ${interaction.guild.name}`, iconURL: interaction.guild.iconURL({ dynamic: true }) })],
-        ephemeral: true,
+        flags: 64,
       });
     }
   },

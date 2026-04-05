@@ -58,6 +58,14 @@ const client = new Client({
 // Global cache for guild settings to avoid redundant DB reads
 client.guildCache = new Map();
 
+// ── Config Validation ────────────────────────────────────────────────────────
+const REQUIRED_ENV = ['TOKEN', 'CLIENT_ID'];
+const missing = REQUIRED_ENV.filter(key => !process.env[key] && !config.discord[key.toLowerCase()]);
+if (missing.length > 0) {
+  Logger.fatal('Config', `❌ Missing required environment variables: ${missing.join(', ')}`);
+  process.exit(1);
+}
+
 // ── Attach globals to client ──────────────────────────────────────────────────
 client.db         = db;
 client.config     = config;
@@ -71,6 +79,10 @@ client.commands   = new Collection();
 client.cooldowns  = new Collection();
 client.shardId    = SHARD_ID;
 
+// ── Shared Collections / Maps (Phase 1 Fixes) ────────────────────────────────
+client.Commands   = client.commands; // Internal alias for legacy compatibility
+client.inviteData = new Map();       // Used by verificationService
+
 // ── Logger helper (shard-aware, via unified Logger) ──────────────────────────
 client.logger = (msg) => Logger.info(`Shard#${SHARD_ID}`, String(msg));
 
@@ -81,11 +93,14 @@ require(`${process.cwd()}/utils/errorHandler`).install(client);
 // ── Load start scripts ────────────────────────────────────────────────────────
 const starts  = fs.readdirSync(`${process.cwd()}/start`).filter(f => f.endsWith('.js'));
 let   counter = 0;
-const SL      = 69;
 
 starts.forEach(file => {
-  require(`${process.cwd()}/start/${file}`)(client);
-  counter++;
+  try {
+    require(`${process.cwd()}/start/${file}`)(client);
+    counter++;
+  } catch (e) {
+    Logger.error('Start', `Failed to load start script: ${file}`, e);
+  }
 });
 
 Logger.loadedBox('Start scripts', counter);
@@ -94,20 +109,19 @@ Logger.loadedBox('Start scripts', counter);
 // ── Login ─────────────────────────────────────────────────────────────────────
 if (client.token) {
   // Show a masked token prefix so you can confirm the right token is loaded
-  const tokenPreview = client.token.split('.')[0] + '.***';
+  const tokenPreview = client.token.split('.')[0].slice(0, 5) + '...';
   Logger.boot(`Authenticating with Discord  [token: ${tokenPreview}]  [Shard#${SHARD_ID}]`);
 
   client.login(client.token)
     .then(() => {
-      // Discord accepted the token — WebSocket handshake now in progress
       Logger.ok('Login', `✅  Token accepted — waiting for Gateway READY  [Shard#${SHARD_ID}]`);
     })
     .catch(e => {
-      Logger.fatal('Login', `❌  Login FAILED [Shard#${SHARD_ID}] — check TOKEN and ensure ALL Privileged Intents are enabled in the Discord Developer Portal`, e);
+      Logger.fatal('Login', `❌  Login FAILED [Shard#${SHARD_ID}] — check TOKEN and ensure ALL Privileged Intents are enabled`, e);
       process.exit(1);
     });
 } else {
-  Logger.fatal('Config', '❌  TOKEN not set — add TOKEN to your Railway Variables (or .env for local dev)');
+  Logger.fatal('Config', '❌  TOKEN not set — check your environment variables.');
   process.exit(1);
 }
 

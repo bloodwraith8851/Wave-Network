@@ -1,364 +1,168 @@
-const {
-  ButtonBuilder,
-  ActionRowBuilder,
-  StringSelectMenuBuilder,
-  EmbedBuilder,
-  ModalBuilder,
-  TextInputBuilder,
+const { 
+  ApplicationCommandType, 
+  ApplicationCommandOptionType, 
+  ChannelType, 
   PermissionsBitField,
-  TextInputStyle,
-  ButtonStyle,
-  ChannelType,
-  ComponentType,
-  ApplicationCommandType,
-  ApplicationCommandOptionType
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle
 } = require('discord.js');
-const { errorMessage } = require(`${process.cwd()}/functions/functions`);
-const { isStaff } = require(`${process.cwd()}/services/ticketService`);
-const Transcript = require('discord-html-transcripts');
+const { 
+  premiumEmbed, 
+  errorMessage, 
+  successMessage, 
+  loadingState,
+  ticketControlRow 
+} = require(`${process.cwd()}/functions/functions`);
+const ticketService = require(`${process.cwd()}/services/ticketService`);
+const permissionService = require(`${process.cwd()}/services/permissionService`);
+const transcriptService = require(`${process.cwd()}/services/transcriptService`);
+
 module.exports = {
   name: 'ticket',
-  description: "Ticket system command.",
+  description: "Master command for managing tickets.",
   category: 'Ticket 🎫',
-  cooldown: 1,
-  userPermissions: ["SendMessages"],
-  botPermissions: ["SendMessages", "EmbedLinks", "ManageChannels", "ViewChannel", "ReadMessageHistory"],
   type: ApplicationCommandType.ChatInput,
-  options: [{
-    name: "create",
-    description: "Create a ticket channel.",
-    type: ApplicationCommandOptionType.Subcommand,
-  },{
-    name: "close",
-    description: "Close the ticket.",
-    type: ApplicationCommandOptionType.Subcommand,
-  },{
-    name: "delete",
-    description: "Delete and removing the ticket channel.",
-    type: ApplicationCommandOptionType.Subcommand,
-  },{
-    name: "rename",
-    description: "Rename the ticket channel name.",
-    type: ApplicationCommandOptionType.Subcommand,
-    options: [{
-      name: "name",
-      description: "Provide the channel name of the Target Ticket channel.",
-      type: ApplicationCommandOptionType.String,
-      required: true
-    }]
-  },{
-    name: "open",
-    description: "Open the ticket channel.",
-    type: ApplicationCommandOptionType.Subcommand,
-  },{
-    name: "invite",
-    description: "Adding a target user in to the ticket channel.",
-    type: ApplicationCommandOptionType.Subcommand,
-    options: [{
-      name: "member",
-      description: "Select a member to adding in to the ticket channel.",
-      type: ApplicationCommandOptionType.User,
-      required: true
-    }]
-  },{
-    name: "transcript",
-    description: "Create a transcript from the channel.",
-    type: ApplicationCommandOptionType.Subcommand,
-  },{
-    name: "setup",
-    description: "Setup ticket system message in channel.",
-    type: ApplicationCommandOptionType.Subcommand,
-    options: [{
-      name: "channel",
-      description: "Select one channel for setup ticket message.",
-      type: ApplicationCommandOptionType.Channel,
-      channelTypes: [ChannelType.GuildText],
-      required: false
-    }]
-  }],
+  options: [
+    {
+      name: "create",
+      description: "Create a new ticket channel manually.",
+      type: ApplicationCommandOptionType.Subcommand,
+      options: [
+        { name: "category", description: "Select a category", type: ApplicationCommandOptionType.String, required: false }
+      ]
+    },
+    {
+      name: "close",
+      description: "Close the current ticket.",
+      type: ApplicationCommandOptionType.Subcommand
+    },
+    {
+      name: "claim",
+      description: "Claim the current ticket.",
+      type: ApplicationCommandOptionType.Subcommand
+    },
+    {
+      name: "rename",
+      description: "Rename the current ticket channel.",
+      type: ApplicationCommandOptionType.Subcommand,
+      options: [
+        { name: "name", description: "New name for the channel", type: ApplicationCommandOptionType.String, required: true }
+      ]
+    },
+    {
+      name: "invite",
+      description: "Invite a user to this ticket.",
+      type: ApplicationCommandOptionType.Subcommand,
+      options: [
+        { name: "member", description: "Member to invite", type: ApplicationCommandOptionType.User, required: true }
+      ]
+    },
+    {
+      name: "transcript",
+      description: "Generate a transcript of this ticket.",
+      type: ApplicationCommandOptionType.Subcommand
+    }
+  ],
 
   run: async (client, interaction) => {
-    let db = client.db;
-    let Sub = interaction.options.getSubcommand();
-    let ticketName = await db.get(`guild_${interaction.guild.id}.ticket.name_${interaction.user.id}`);
-    let ticketControl = await db.get(`guild_${interaction.guild.id}.ticket.control_${interaction.channel.id}`);
-    switch (Sub) {
-      case "create": {
-        let embed = new EmbedBuilder()
-          .setTitle(`${client.emotes.ticket}| **Create Ticket**`)
-          .setColor(client.colors.none)
-          .setTimestamp()
-          .setDescription(`If you want to create a ticket channel for yourself, you have to click to this emoji: \`"${client.emotes.ticket}"\` or else click to \`"${client.emotes.x}"\``)
-          .setURL(client.config.discord.server_support)
-          .setFooter({
-            text: `Create Ticket • Requested by ${interaction.user.tag} • ${client.embed.footerText}`,
-            iconURL: interaction.user.displayAvatarURL({ dynamic: true })
-          })
-          .setThumbnail(interaction.guild.iconURL({ dynamic: true }))
+    const db = client.db;
+    const sub = interaction.options.getSubcommand();
+    const { guild, channel, user, member } = interaction;
 
-        interaction.reply({
-          flags: 64,
-          embeds: [embed],
-          components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('create').setEmoji(client.emotes.ticket).setLabel("Create Ticket").setStyle(ButtonStyle.Success), new ButtonBuilder().setCustomId('dont_do').setEmoji(client.emotes.x).setLabel('Cancel Process').setStyle(ButtonStyle.Danger))]
-        })
-        //db.set(`guild_${interaction.guild.id}.ticket.message_${interaction.channel.id}`, msg.id)
-        setTimeout(() => {
-          interaction.editReply({
-            components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('timeout').setEmoji(client.emotes.alert).setLabel('Time Is Up').setStyle(ButtonStyle.Primary).setDisabled(true))]
-          }).catch(() => null);
-        }, 60 * 1000)
-      } break;
-      case "close": {
-        if (interaction.channel.name.startsWith(`ticket-`) || interaction.channel.name === ticketName) {
-          interaction.reply({
-            embeds: [new EmbedBuilder().setColor(client.colors.none).setTitle(`${client.emotes.close}| Close Ticket`).setDescription(`Dear friend, you requested for closing ${interaction.guild.members.cache.find(c => c.id === ticketControl)} ticket, are you sure for close here??`)],
-            components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setCustomId("cancel").setEmoji(client.emotes.x).setLabel("Don't Close"), new ButtonBuilder().setStyle(ButtonStyle.Secondary).setCustomId("configTicket").setEmoji(client.emotes.close).setLabel("Close It"))]
-          })
-          setTimeout(() => {
-            interaction.editReply({
-              components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('timeout').setEmoji(client.emotes.alert).setLabel('Time Is Up').setStyle(ButtonStyle.Primary).setDisabled(true))]
-            }).catch(() => null);
-          }, 60 * 1000)
-        } else {
-          errorMessage(client, interaction, `**My Friend, here is not a ticket channel please use this command in other channel**`)
+    // ── 🎫 Validation: Must be in a ticket for most subcommands ──────────────
+    const isTicket = await ticketService.isTicketChannel(db, guild, channel);
+    if (!isTicket && sub !== 'create') {
+      return errorMessage(client, interaction, 'This command can only be used inside a ticket channel.');
+    }
+
+    switch (sub) {
+      case 'create': {
+        await interaction.deferReply({ flags: 64 });
+        const category = interaction.options.getString('category') || 'General Support';
+        const ticketChannel = await ticketService.createTicket(client, interaction, category);
+        if (ticketChannel) {
+          await successMessage(client, interaction, `Your ticket has been created: ${ticketChannel}`);
         }
-      } break;
-      case "open": {
-        if (interaction.channel.name.startsWith(`ticket-`) || interaction.channel.name === ticketName) {
-          const staff = await isStaff(db, interaction.guild, interaction.member);
-          if (!staff) return errorMessage(client, interaction, "You need **Manage Channels** or a **Staff Role** to use this.");
+        break;
+      }
 
-          interaction.reply({
-            embeds: [new EmbedBuilder().setColor(client.colors.none).setTitle(`${client.emotes.open}| Open Ticket`).setDescription(`Dear friend, you requested for openning ${interaction.guild.members.cache.find(c => c.id === ticketControl)} ticket, are you sure for open here??`)],
-            components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setCustomId("cancel").setEmoji(client.emotes.x).setLabel("Don't Open"), new ButtonBuilder().setStyle(ButtonStyle.Success).setCustomId("reopenTicket").setEmoji(client.emotes.open).setLabel("Open It"))]
-          })
-          setTimeout(() => {
-            interaction.editReply({
-              components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('timeout').setEmoji(client.emotes.alert).setLabel('Time Is Up').setStyle(ButtonStyle.Primary).setDisabled(true))]
-            }).catch(() => null);
-          }, 60 * 1000)
-        } else {
-          errorMessage(client, interaction, `**My Friend, here is not a ticket channel please use this command in other channel**`)
+      case 'close': {
+        // Trigger the button logic flow manually for consistency
+        const isStaff = await permissionService.checkPermission(db, guild, member, 'ticket.close', client.config);
+        const ownerId = await db.get(`guild_${guild.id}.ticket.control_${channel.id}`);
+        if (!isStaff.allowed && ownerId !== user.id) {
+          return errorMessage(client, interaction, 'You do not have permission to close this ticket.');
         }
-      } break;
-      case "delete": {
-        if(interaction.channel.name.startsWith(`ticket-`) || interaction.channel.name === ticketName) {
-          const staff = await isStaff(db, interaction.guild, interaction.member);
-          if (!staff) return errorMessage(client, interaction, "You need **Manage Channels** or a **Staff Role** to use this.");
-          interaction.reply({
-            embeds: [new EmbedBuilder().setColor(client.colors.none).setTitle(`${client.emotes.trash}| Delete Ticket`).setDescription(`Dear friend, you requested for delete ${interaction.guild.members.cache.find(c => c.id === ticketControl)} ticket, are you sure for delete here??`)],
-            components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setCustomId("cancel").setEmoji(client.emotes.x).setLabel("Don't Delete"), new ButtonBuilder().setStyle(ButtonStyle.Danger).setCustomId("deleteTicket").setEmoji(client.emotes.trash).setLabel("Delete It"))]
-          })
-          setTimeout(() => {
-            interaction.editReply({
-              components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('timeout').setEmoji(client.emotes.alert).setLabel('Time Is Up').setStyle(ButtonStyle.Primary).setDisabled(true))]
-            }).catch(() => null);
-          }, 60 * 1000)
-        } else {
-          errorMessage(client, interaction, `**My Friend, here is not a ticket channel please use this command in other channel**`)
-        }
-      } break;
-      case "rename": {
-        // BUG FIX #1: Was using new ButtonStyle() (not a constructor) and calling
-        // interaction.reply() twice — both cause immediate crashes.
-        // Now does a direct rename (matches ticket-rename-cmd.js behaviour).
-        const inTicket = interaction.channel.name.startsWith('ticket-') || interaction.channel.name === ticketName;
-        if (!inTicket) return errorMessage(client, interaction, `This command can only be used **inside a ticket channel**.`);
-        const staff = await isStaff(db, interaction.guild, interaction.member);
-        if (!staff)
-          return errorMessage(client, interaction, 'You need **Manage Channels** or a **Staff Role** to rename tickets.');
 
-        const rawName = interaction.options.getString('name');
-        const newName = rawName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 90);
-        if (!newName) return errorMessage(client, interaction, 'Invalid channel name. Use letters, numbers and hyphens only.');
-
-        const oldName = interaction.channel.name;
-        await interaction.channel.setName(newName);
-
-        // Update owner lookup key
-        const ownerId = await db.get(`guild_${interaction.guild.id}.ticket.control_${interaction.channel.id}`);
-        if (ownerId) await db.set(`guild_${interaction.guild.id}.ticket.name_${ownerId}`, newName);
-
-        const { premiumEmbed } = require(`${process.cwd()}/functions/functions`);
         const embed = premiumEmbed(client, {
-          title: `✏️  Ticket Renamed`,
-          description: `Channel renamed \`${oldName}\` → \`${newName}\` by ${interaction.user}.`,
-          color: '#8B5CF6'
-        }).setFooter({ text: `Wave Network  •  Ticket Management`, iconURL: interaction.guild.iconURL({ dynamic: true }) });
+          title: '🔒  Close Ticket',
+          description: 'Are you sure you want to close this ticket? This will restrict access for the user.',
+          color: client.colors?.warning
+        });
 
-        await interaction.reply({ embeds: [embed] });
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId('close').setLabel('Confirm Close').setStyle(ButtonStyle.Danger),
+          new ButtonBuilder().setCustomId('dont_do').setLabel('Cancel').setStyle(ButtonStyle.Secondary)
+        );
 
-        const logId = await db.get(`guild_${interaction.guild.id}.modlog`);
-        const logCh = logId ? interaction.guild.channels.cache.get(logId) : null;
-        const { logMessage } = require(`${process.cwd()}/functions/functions`);
-        if (logCh) logMessage(client, interaction, logCh,
-          `${interaction.user.tag} renamed \`${oldName}\` → \`${newName}\`.`,
-          'Ticket Renamed', client.emotes.rename);
-      } break;
-      case "invite": {
-        if (interaction.channel.name.startsWith(`ticket-`) || interaction.channel.name === ticketName) {
-          let member = interaction.options.getMember('member');
-          const staff = await isStaff(db, interaction.guild, interaction.member);
-          if (!staff) return errorMessage(client, interaction, "You need **Manage Channels** or a **Staff Role** to use this.");
+        await interaction.reply({ embeds: [embed], components: [row] });
+        break;
+      }
 
-          let embed = new EmbedBuilder()
-            .setAuthor({
-              name: `Requested by ` + interaction.user.tag,
-              iconURL: interaction.user.displayAvatarURL({ dynamic: true })
-            })
-            .setTitle(client.emotes.print + '| **Request To Adding People To Ticket**')
-            .setColor(client.colors.none)
-            .setDescription("are you sure to add some one in to this ticket channel??")
-            .setFooter({
-              text: "Adding People • " + client.embed.footerText,
-              iconURL: interaction.guild.iconURL({ dynamic: true })
-            })
+      case 'claim': {
+        if (await permissionService.requirePermission(db, guild, member, 'ticket.claim', client.config, interaction, errorMessage)) return;
+        
+        const currentClaim = await db.get(`guild_${guild.id}.ticket.claimed_${channel.id}`);
+        if (currentClaim) return errorMessage(client, interaction, `This ticket is already claimed by <@${currentClaim}>.`);
 
-          let button = new ActionRowBuilder()
-            .addComponents([new ButtonBuilder()
-              .setStyle(ButtonStyle.Success)
-              .setEmoji(client.emotes.plus)
-              .setLabel("Add Member")
-              .setCustomId("addmemberTicket")
-              , new ButtonBuilder()
-                .setStyle(ButtonStyle.Danger)
-                .setEmoji(client.emotes.x)
-                .setLabel("Cancel")
-                .setCustomId("canceladdmemberTicket")
-            ])
-          interaction.reply({
-            embeds: [embed],
-            components: [button]
-          })
-          await db.set(`guild_${interaction.guild.id}.ticket.new_member_${interaction.channel.id}`, member.id)
-          setTimeout(async() => {
-          interaction.editReply({
-            components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('timeout').setEmoji(client.emotes.alert).setLabel('Time Is Up').setStyle(ButtonStyle.Primary).setDisabled(true))]
-          }).catch(() => null);
-          await db.delete(`guild_${interaction.guild.id}.ticket.new_member_${interaction.channel.id}`).catch(() => null);
-        }, 60 * 1000)
+        await db.set(`guild_${guild.id}.ticket.claimed_${channel.id}`, user.id);
+        await successMessage(client, interaction, 'You have claimed this ticket.');
+        await channel.setTopic(`${channel.topic} | 🙋 Claimed by: ${user.tag}`).catch(() => null);
+        break;
+      }
 
-        } else {
-          errorMessage(client, interaction, `**My Friend, here is not a ticket channel please use this command in other channel**`)
-        }
-      } break;
-      case "transcript": {
-       const staff = await isStaff(db, interaction.guild, interaction.member);
-       if (!staff) return errorMessage(client, interaction, "You need **Manage Channels** or a **Staff Role** to use this.");
-       if(interaction.channel.name.startsWith(`ticket-`) || interaction.channel.name === ticketName) {
-        let file = await Transcript.createTranscript(interaction.channel, {
-          limit: -1,
-          returnType: 'attachment',
-          filename: `TicketTranscript-${interaction.channel.name}.html`,
-          saveImages: false,
-          footerText: `Exported {number} message{s}.`,
-          poweredBy: false
-        })
-        await interaction.reply({
-          embeds: [new EmbedBuilder().setColor(client.colors.none).setDescription(`Creating transcript of ${interaction.channel} for you and this will send you from dm so please wait.`).setTitle(`${client.emotes.hamer}| Build Transcript For You`)],
-          flags: 64
-        })
-        await interaction.user.send({
-          files: [file],
-          embeds: [new EmbedBuilder().setColor(client.colors.none).setDescription(`Creating the \`${interaction.channel.name}\` tikcet of ${interaction.guild.name} transcript have successfull.`).setTitle(`${client.emotes.success}| Successfully Transcript Created`).setAuthor({ name: `${interaction.channel.name} • ${interaction.guild.name}`, iconURL: interaction.guild.iconURL({ dynamic: true }) })],
-        })
-       }else{
-          errorMessage(client, interaction, `**My Friend, here is not a ticket channel please use this command in other channel**`)
-       }
-      }break;
-      case "setup": {
-        let channel =  interaction.options.getChannel("channel")||interaction.channel;
-        const staff = await isStaff(db, interaction.guild, interaction.member);
-        if (!staff) return errorMessage(client, interaction, "You need **Manage Channels** or a **Staff Role** to use this.");
-      
-        interaction.reply({
-          flags: 64,
-          embeds: [new EmbedBuilder().setFooter({ text: `Setup Ticket • Requested by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) }).setTitle(`${client.emotes.setup}| **Ticket System Setting**`).setColor(client.colors.none).setDescription(`**setup your guild ticket system in ${channel} with default or customize.**`).setThumbnail(interaction.guild.iconURL({ dynamic: true }))],
-          components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('ticket_default').setEmoji(client.emotes.system).setLabel("Setup Ticket To Default").setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId('ticket_setup_custom').setEmoji(client.emotes.hamer).setLabel("Setup Ticket To Customize").setStyle(ButtonStyle.Success)), new ActionRowBuilder().addComponents([new ButtonBuilder().setStyle(ButtonStyle.Link).setEmoji(client.emotes.help).setLabel("Support").setURL(client.config.discord.server_support)])],
-          withResponse: true
-        }).then(async(msg)=>{
-        let time = 120000;
-        const collector = msg.createMessageComponentCollector({ time: time });
-        collector.on('collect', async (collect)=>{
-          if(collect.guild.id !== interaction.guild.id) return;
-          if(collect.user.id !== interaction.user.id){
-            return errorMessage(client, collect, `**${client.emotes.error}| This component only for ${interaction.user} and you can't use it.\nuse "\`</ticket setup:${client.application.commands.cache.find(c => c.name === "ticket").id}>\`" for setup the ticket system**`)
-          }
-          if(collect.isButton()){
-            if(collect.customId === "ticket_setup_custom"){
-        const ticket_modal = new ModalBuilder()
-          .setCustomId("ticket_modal")
-          .setTitle("Setup Ticket")
-                    
-        ticket_modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("ticket_title").setLabel("Embed Title").setStyle(TextInputStyle.Short).setPlaceholder("Place Ticket Embed Title Here ...").setRequired(false)), new ActionRowBuilder().addComponents([new TextInputBuilder().setCustomId("ticket_description").setLabel("Embed Description").setStyle(TextInputStyle.Paragraph).setPlaceholder("Place Ticket Embed Description Here ...").setRequired(true)]), new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("ticket_color").setLabel("Embed Color").setStyle(TextInputStyle.Short).setPlaceholder("Place Ticket Embed Color Hex Code Here ...").setRequired(false)), new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("ticket_button_name").setLabel("Button Name").setStyle(TextInputStyle.Short).setPlaceholder("Place Ticket Button Name Here ...").setRequired(false)), new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("ticket_button_emoji").setLabel("Button Emoji").setStyle(TextInputStyle.Short).setPlaceholder("Place Ticket Button Emoji Here ...").setRequired(false)))
-        await collect.showModal(ticket_modal)
-            }
-            else if(collect.customId === "ticket_default"){
-              let embed = new EmbedBuilder().setColor(client.colors.none)
-              embed.setTitle(`${client.emotes.ticket}| Ticket System`)
-              embed.setDescription(`To create a ticket channel click to ${client.emotes.mail}`)
-              embed.setFooter({
-                text: `${client.embed.footerText}`,
-                iconURL: collect.guild.iconURL({ dynamic: true })
-              })
-              collect.update({
-                embeds: [new EmbedBuilder().setFooter({ text: `Setup Ticket • Requested by ${collect.user.tag}`, iconURL: collect.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(collect.guild.iconURL({ dynamic: true })).setTitle(client.emotes.success + '| **Ticket Is Successfuly Setuped To Default**').setColor(client.colors.none).setDescription(`**setup server ticket system in ${channel} to default type is successfully.**`)],
-                components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('ticket_default').setEmoji(client.emotes.system).setLabel("Ticket Setup To Default").setStyle(ButtonStyle.Primary).setDisabled(true)),new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Link).setEmoji(client.emotes.help).setLabel("Support").setURL(client.config.discord.server_support))] 
-              })
-              await channel.send({
-                embeds: [embed],
-                components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('create_ticket').setEmoji(client.emotes.mail).setLabel("Create Ticket").setStyle(ButtonStyle.Success))] 
-              })
-            }
-          }
-          })
-        await interaction.awaitModalSubmit({ time: time }).then(async(collect)=>{
-            try{
-              if (collect.guild.id !== interaction.guild.id) return;
-              if (collect.user.id !== interaction.user.id) return errorMessage(client, collect, `This message is only for ${interaction.user} and you cannot use it.`)
-      if(collect.isModalSubmit()){
-        if(collect.customId === 'ticket_modal'){
-          let title = collect.fields.getTextInputValue('ticket_title')
-          let description = collect.fields.getTextInputValue('ticket_description')
-          let color = collect.fields.getTextInputValue('ticket_color')
-          let button_name = collect.fields.getTextInputValue('ticket_button_name')
-          let button_emoji = collect.fields.getTextInputValue('ticket_button_emoji')
-          let embed = new EmbedBuilder()
-          let button = new ButtonBuilder().setCustomId('create_ticket').setStyle(ButtonStyle.Success)
-          button.setLabel(`${button_name? button_name : "Create Ticket"}`)
-          button.setEmoji(`${button_emoji? button_emoji : client.emotes.ticket}`)
-          embed.setColor(`${color? color : client.colors.none}`)
-          
-          if(description){
-            embed.setDescription(description)
-          }
-          if(title){
-            embed.setTitle(title)
-          }
-          await collect.update({
-                embeds: [new EmbedBuilder().setFooter({ text: `Setup Ticket • Requested by ${collect.user.tag}`, iconURL: collect.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(collect.guild.iconURL({ dynamic: true })).setTitle(client.emotes.success + '| **Ticket Is Successfuly Setuped To Customize**').setColor(client.colors.none).setDescription(`**setup server ticket system in ${channel} to custom type is successfully.**`)],
-            components: [new ActionRowBuilder().addComponents([new ButtonBuilder().setCustomId('ticket_setup_custom').setEmoji(client.emotes.system).setLabel("Ticket Setup To Customize").setStyle(ButtonStyle.Success).setDisabled(true)]),new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Link).setEmoji(client.emotes.help).setLabel("Support").setURL(client.config.discord.server_support))] 
-          })
-          await channel.send({
-                embeds: [embed],
-                components: [new ActionRowBuilder().addComponents(button)] 
-          })
-         }
-        }
-              
-          }catch(e){
-           //errorMessage(client, collect, `\`\`\`js\n${e}\n\`\`\``)
-         }
-        }).catch(() => {
-          // Ignore timeout rejections
-        })
-        setTimeout(()=>{
-          interaction.editReply({
-            components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('timeout').setEmoji(client.emotes.alert).setLabel('Time Is Up').setStyle(ButtonStyle.Primary).setDisabled(true)).addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`))]
-          }).catch(() => null);
-        }, time)
-        })
-      }break;
+      case 'rename': {
+        if (await permissionService.requirePermission(db, guild, member, 'ticket.rename', client.config, interaction, errorMessage)) return;
+
+        const newNameRaw = interaction.options.getString('name');
+        const newName = newNameRaw.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 90);
+        
+        await loadingState(interaction, `Renaming to \`${newName}\`...`);
+        await channel.setName(newName);
+        
+        const ownerId = await db.get(`guild_${guild.id}.ticket.control_${channel.id}`);
+        if (ownerId) await db.set(`guild_${guild.id}.ticket.name_${ownerId}`, newName);
+        
+        await successMessage(client, interaction, `Channel renamed to \`${newName}\`.`);
+        break;
+      }
+
+      case 'invite': {
+        if (await permissionService.requirePermission(db, guild, member, 'ticket.invite', client.config, interaction, errorMessage)) return;
+
+        const target = interaction.options.getMember('member');
+        await channel.permissionOverwrites.create(target, {
+          ViewChannel: true,
+          SendMessages: true,
+          ReadMessageHistory: true,
+          AttachFiles: true,
+          EmbedLinks: true
+        });
+
+        await successMessage(client, interaction, `${target} has been invited to the ticket.`);
+        break;
+      }
+
+      case 'transcript': {
+        if (await permissionService.requirePermission(db, guild, member, 'ticket.transcript', client.config, interaction, errorMessage)) return;
+
+        await loadingState(interaction, 'Generating transcript...');
+        await transcriptService.generateAndDeliver(client, channel, member, 'manual');
+        await successMessage(client, interaction, 'Transcript has been generated and delivered to your DMs.');
+        break;
+      }
     }
   }
-}
+};

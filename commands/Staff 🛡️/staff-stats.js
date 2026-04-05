@@ -63,7 +63,7 @@ module.exports = {
     const denied = await permSvc.requirePermission(db, interaction.guild, interaction.member, 'staff.stats', client.config, interaction, errorMessage);
     if (denied) return;
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: 64 });
 
     // Load analytics data
     const analytics = (await db.get(`guild_${guildId}.analytics`)) || {};
