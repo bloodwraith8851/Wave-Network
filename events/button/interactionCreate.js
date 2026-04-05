@@ -37,8 +37,8 @@ module.exports = async (client, interaction) => {
     
     const db = client.db;
     const { guild, channel, user, member } = interaction;
-    const guildId = guild.id;
-    const channelId = channel.id;
+    const guildId = guild?.id || 'DM';
+    const channelId = channel?.id || 'DM';
 
     // ── 🛡️ Permission Layer ──────────────────────────────────────────────────
     const ticketOwnerId = await db.get(`guild_${guildId}.ticket.control_${channelId}`);

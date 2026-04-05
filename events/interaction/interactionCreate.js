@@ -16,14 +16,17 @@ const clc = require("cli-color");
 module.exports = async (client, interaction) => {
  try {
     let db = client.db;
-    if(!interaction.channel.permissionsFor(interaction.guild.members.me).has([PermissionsBitField.Flags.SendMessages])) return interaction.user.send({ content: `${client.emotes.error}| I am missing the Permission to \`SendMessages\` in ${interaction.channel}` });
-    if(!interaction.channel.permissionsFor(interaction.guild.members.me).has([PermissionsBitField.Flags.EmbedLinks])) return interaction.reply({ content: `${client.emotes.error}| I am missing the Permission to \`EmbedLinks\` in ${interaction.channel}`, flags: 64 });
+    if (interaction.guild) {
+      if(!interaction.channel.permissionsFor(interaction.guild.members.me).has([PermissionsBitField.Flags.SendMessages])) return interaction.user.send({ content: `${client.emotes.error}| I am missing the Permission to \`SendMessages\` in ${interaction.channel}` });
+      if(!interaction.channel.permissionsFor(interaction.guild.members.me).has([PermissionsBitField.Flags.EmbedLinks])) return interaction.reply({ content: `${client.emotes.error}| I am missing the Permission to \`EmbedLinks\` in ${interaction.channel}`, flags: 64 });
+    }
 
     // ── Phase 4c: Standalone button handlers ──────────────────────────────
     if (interaction.isButton()) {
 
       // Captcha verification button
       if (interaction.customId === 'verify_captcha') {
+        if (!interaction.guild) return errorMessage(client, interaction, 'Verification must be completed within a server.');
         const verifySvc = require(`${process.cwd()}/services/verificationService`);
         await verifySvc.markVerified(db, interaction.guild.id, interaction.user.id);
         return interaction.reply({

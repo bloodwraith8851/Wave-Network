@@ -87,6 +87,8 @@ const LEVEL_EMOJIS = ['👤', '🛡️', '⚒️', '👑', '🌟'];
  */
 async function getMemberLevel(db, guild, member, clientConfig) {
   try {
+    if (!guild || !member) return 0;
+
     // Level 4 — Owner
     const ownerIds = (clientConfig?.owner || []).filter(Boolean);
     if (ownerIds.includes(member.id) || guild.ownerId === member.id) return 4;
@@ -94,18 +96,18 @@ async function getMemberLevel(db, guild, member, clientConfig) {
     // Level 3 — Admin
     const adminRoleId = await db.get(`guild_${guild.id}.permissions.roles.admin`)
       || await db.get(`guild_${guild.id}.ticket.admin_role`); // legacy fallback
-    if (adminRoleId && member.roles.cache.has(adminRoleId)) return 3;
-    if (member.permissions.has(PermissionsBitField.Flags.ManageGuild)) return 3;
+    if (adminRoleId && member.roles && member.roles.cache.has(adminRoleId)) return 3;
+    if (member.permissions && member.permissions.has(PermissionsBitField.Flags.ManageGuild)) return 3;
 
     // Level 2 — Moderator
     const modRoleId = await db.get(`guild_${guild.id}.permissions.roles.moderator`);
-    if (modRoleId && member.roles.cache.has(modRoleId)) return 2;
-    if (member.permissions.has(PermissionsBitField.Flags.ManageMessages)) return 2;
+    if (modRoleId && member.roles && member.roles.cache.has(modRoleId)) return 2;
+    if (member.permissions && member.permissions.has(PermissionsBitField.Flags.ManageMessages)) return 2;
 
     // Level 1 — Staff
     const staffRoleId = await db.get(`guild_${guild.id}.permissions.roles.staff`);
-    if (staffRoleId && member.roles.cache.has(staffRoleId)) return 1;
-    if (member.permissions.has(PermissionsBitField.Flags.ManageChannels)) return 1;
+    if (staffRoleId && member.roles && member.roles.cache.has(staffRoleId)) return 1;
+    if (member.permissions && member.permissions.has(PermissionsBitField.Flags.ManageChannels)) return 1;
 
     return 0;
   } catch {

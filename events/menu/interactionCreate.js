@@ -30,6 +30,7 @@ module.exports = async (client, interaction) => {
     const value = interaction.values[0];
 
     // Anti-abuse checks
+    if (!interaction.guild) return errorMessage(client, interaction, 'This action can only be performed within a server.');
     const check = await runAllChecks(db, interaction.guild, interaction.user.id);
     if (!check.allowed) {
       const reasons = {
@@ -85,6 +86,7 @@ module.exports = async (client, interaction) => {
     const panelId  = rawValue.slice(0, separatorIdx);
     const catValue = rawValue.slice(separatorIdx + 2);
 
+    if (!interaction.guild) return errorMessage(client, interaction, 'This action can only be performed within a server.');
     // Load panel info
     const panels = (await db.get(`guild_${interaction.guild.id}.panels`)) || [];
     const panel  = panels.find(p => p.id === panelId);
@@ -175,6 +177,7 @@ module.exports = async (client, interaction) => {
     const [targetUserId, index] = interaction.values[0].split('_');
     const idx = parseInt(index);
     
+    if (!interaction.guild) return errorMessage(client, interaction, 'This action can only be performed within a server.');
     // Permission check
     const staff = await isStaff(db, interaction.guild, interaction.member);
     if (!staff) return errorMessage(client, interaction, 'You need **Staff Roles** to delete user notes.');
