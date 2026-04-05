@@ -18,6 +18,7 @@ const transcriptService = require(`${process.cwd()}/services/transcriptService`)
 const analyticsService  = require(`${process.cwd()}/services/analyticsService`);
 const webhookService    = require(`${process.cwd()}/services/webhookService`);
 const cache             = require(`${process.cwd()}/services/cacheService`);
+const ratingService      = require(`${process.cwd()}/services/ratingService`);
 
 module.exports = async (client, interaction) => {
   try {
@@ -80,6 +81,12 @@ module.exports = async (client, interaction) => {
 
       // ── Transcript ───────────────────────────────────────────────────────
       await transcriptService.generateAndDeliver(client, channel, member, 'closed');
+      
+      // ── Rating Feature ───────────────────────────────────────────────────
+      const ratingsEnabled = (await db.get(`guild_${guildId}.ticket.settings.ratings_enabled`)) ?? true;
+      if (ratingsEnabled && ownerId) {
+        await ratingService.sendRatingRequest(client, guild, ownerId, channel.name, user.id);
+      }
       
       return;
     }

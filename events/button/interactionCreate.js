@@ -26,6 +26,7 @@ const analyticsService  = require(`${process.cwd()}/services/analyticsService`);
 const permissionService  = require(`${process.cwd()}/services/permissionService`);
 const webhookService     = require(`${process.cwd()}/services/webhookService`);
 const cache             = require(`${process.cwd()}/services/cacheService`);
+const ratingService     = require(`${process.cwd()}/services/ratingService`);
 
 module.exports = async (client, interaction) => {
   try {
@@ -163,6 +164,24 @@ module.exports = async (client, interaction) => {
       await channel.setTopic(`${topic} | 🙋 Claimed by: ${user.tag}`).catch(() => null);
       
       return;
+    }
+
+    // ── ⭐ Rating Handler ───────────────────────────────────────────────────
+    if (interaction.customId.startsWith('rating_')) {
+      const parts = interaction.customId.split('_'); // rating_N_staffId_guildId
+      const rating = parseInt(parts[1]);
+      const staffId = parts[2];
+      const gId     = parts[3];
+
+      await ratingService.processRating(db, gId, staffId, user.id, rating);
+
+      const embed = premiumEmbed(client, {
+        title: '⭐  Thank You!',
+        description: `Your rating of **${rating} ★** has been recorded. We appreciate your feedback!`,
+        color: ratingService.COLORS[rating - 1]
+      });
+
+      return interaction.update({ embeds: [embed], components: [] });
     }
 
     // ── ✖️ Cancel action ──────────────────────────────────────────────────────

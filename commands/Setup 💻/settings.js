@@ -26,7 +26,10 @@ async function buildSettingsEmbed(db, guild, client, interaction) {
     staffRole,
     modLog,
     category,
-    menuOptions
+    menuOptions,
+    ratingsEnabled,
+    maxTickets,
+    cooldownSec
   ] = await Promise.all([
     db.get(`guild_${guildId}.ticket.type`),
     db.get(`guild_${guildId}.ticket.admin_role`),
@@ -34,7 +37,10 @@ async function buildSettingsEmbed(db, guild, client, interaction) {
     db.get(`guild_${guildId}.permissions.roles.staff`),
     db.get(`guild_${guildId}.modlog`),
     db.get(`guild_${guildId}.ticket.category`),
-    db.get(`guild_${guildId}.ticket.menu_option`)
+    db.get(`guild_${guildId}.ticket.menu_option`),
+    db.get(`guild_${guildId}.ticket.settings.ratings_enabled`),
+    db.get(`guild_${guildId}.ticket.settings.max_tickets`),
+    db.get(`guild_${guildId}.ticket.settings.cooldown_seconds`)
   ]);
 
   const fields = [
@@ -86,6 +92,23 @@ async function buildSettingsEmbed(db, guild, client, interaction) {
         ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply}${menuOptions.map(o => `**Name:** \`${o.value}\` | **Emoji:** ${o.emoji || "none"}`).join(`\n${client.emotes.reply}`)}` 
         : `${client.emotes.reply} Disabled ${client.emotes.disable1}${client.emotes.disable2}`, 
       inline: false 
+    },
+    { 
+      name: `Rating DMs Feature:`, 
+      value: (ratingsEnabled ?? true) 
+        ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply} Users will receive a rating DM after ticket close.` 
+        : `${client.emotes.reply} Disabled ${client.emotes.disable1}${client.emotes.disable2}`, 
+      inline: true 
+    },
+    {
+      name: `Max Open Tickets:`,
+      value: `${client.emotes.reply} Limit: **${maxTickets || 1}**`,
+      inline: true
+    },
+    {
+      name: `Ticket Cooldown:`,
+      value: `${client.emotes.reply} Wait: **${cooldownSec ?? 300}s**`,
+      inline: true
     }
   ];
 
@@ -101,6 +124,7 @@ module.exports = {
   name: 'settings',
   category: 'Setup 💻',
   type: ApplicationCommandType.ChatInput,
+  dmPermission: false,
   cooldown: 1,
   description: "Show a dashboard of guild setting for you.",
   userPermissions: ["ManageChannels", "ManageGuild", "SendMessages"],
@@ -108,6 +132,7 @@ module.exports = {
   run: async (client, interaction) => {
     let db = client.db;
     try {
+      if (!interaction.guild) return errorMessage(client, interaction, "This command can only be used within a server.");
       await interaction.deferReply({ flags: 64 });
 
       let menu = new StringSelectMenuBuilder().setCustomId("setup_menu").setMaxValues(1).setMinValues(1).setPlaceholder(`${client.emotes.setting}| Click me to setup !!`).addOptions([
