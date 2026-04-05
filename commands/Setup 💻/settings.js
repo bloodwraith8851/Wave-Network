@@ -14,51 +14,136 @@ const {
     PermissionsBitField,
     TextInputStyle
   } = require('discord.js');
-  const {
-    errorMessage,
-    premiumEmbed
-  } = require(`${process.cwd()}/functions/functions`);
-  module.exports = {
-    name: 'settings',
-    category: 'Setup 💻',
-    type: ApplicationCommandType.ChatInput,
-    cooldown: 1,
-    description: "Show a dashboard of guild setting for you.",
-    userPermissions: ["ManageChannels", "ManageGuild", "SendMessages"],
-    botPermissions: ["ManageChannels", "SendMessages", "EmbedLinks"],
-    run: async (client, interaction, args, lang) => {
-      let db = client.db;
-      try {
-        let menu = new StringSelectMenuBuilder().setCustomId("setup_menu").setMaxValues(1).setMinValues(1).setPlaceholder(`${client.emotes.setting}| Click me to setup !!`).addOptions([
-          { label: `Setup Bot Language`,       value: `stlanguage`, emoji: `${client.emotes.language}` },
-          { label: `Setup Admin Role`,          value: `stadmin`,    emoji: `${client.emotes.admin}` },
-          { label: `Setup Mod Role`,            value: `stmod`,      emoji: `⚒️` },
-          { label: `Setup Staff Role`,          value: `ststaff`,    emoji: `🛡️` },
-          { label: `Setup Ticket Category`,     value: `stcategory`, emoji: `${client.emotes.category}` },
-          { label: `Setup Ticket Log`,          value: `stlog`,      emoji: `${client.emotes.log}` },
-          { label: `Setup Ticket Type`,         value: `sttype`,     emoji: `${client.emotes.type}` },
-          { label: `Setup Ticket Menu Option`,  value: `stoption`,   emoji: `${client.emotes.option}` },
-          { label: `Setup Max Open Tickets`,    value: `stmaxtickets`, emoji: `🎟️` },
-          { label: `Setup Ticket Cooldown`,     value: `stcooldown`,   emoji: `⏳` },
-          { label: `Setup Transcript Channel`,  value: `sttranscript`, emoji: `📄` },
-          { label: `Toggle Auto-Close`,         value: `stAutoClose`,  emoji: `🕒` },
-          { label: `Toggle Staff Reminders`,    value: `stReminders`,  emoji: `🔔` },
-          { label: `Toggle Rating DMs`,         value: `stRatings`,    emoji: `⭐` },
-        ])
-        let time = 120000;
-        interaction.reply({
-          embeds: [new EmbedBuilder().setTitle(`${client.emotes.setting}| Welcome to the setting`).setColor(client.colors.none).setDescription(`This is __${client.user.username}__ setting from **${interaction.guild.name}** and you can setup all things you need for setting up your guild.`).addFields([
-            { name: `Guild Ticket Type:`, value: `${await db.has(`guild_${interaction.guild.id}.ticket.type`) ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply} \`${await db.get(`guild_${interaction.guild.id}.ticket.type`)}\`` : `${client.emotes.reply} \`Reason - Menu - UserTag\` (Default)`}`, inline: false },
-            { name: `Guild Admin Role:`, value: `${await db.has(`guild_${interaction.guild.id}.ticket.admin_role`) ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply}<@&${await db.get(`guild_${interaction.guild.id}.ticket.admin_role`)}>` : `${client.emotes.reply} Disabled ${client.emotes.disable1}${client.emotes.disable2}`}`, inline: true },
-            { name: `Guild Mod Role:`, value: `${await db.has(`guild_${interaction.guild.id}.permissions.roles.moderator`) ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply}<@&${await db.get(`guild_${interaction.guild.id}.permissions.roles.moderator`)}>` : `${client.emotes.reply} Disabled ${client.emotes.disable1}${client.emotes.disable2}`}`, inline: true },
-            { name: `Guild Staff Role:`, value: `${await db.has(`guild_${interaction.guild.id}.permissions.roles.staff`) ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply}<@&${await db.get(`guild_${interaction.guild.id}.permissions.roles.staff`)}>` : `${client.emotes.reply} Disabled ${client.emotes.disable1}${client.emotes.disable2}`}`, inline: true },
-            { name: `Guild Mod Log:`, value: `${await db.has(`guild_${interaction.guild.id}.modlog`) ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply} <#${await db.get(`guild_${interaction.guild.id}.modlog`)}>` : `${client.emotes.reply} Disabled ${client.emotes.disable1}${client.emotes.disable2}`}`, inline: false },
-            { name: `Guild Parent Channel:`, value: `${await db.has(`guild_${interaction.guild.id}.ticket.category`) ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply} <#${await db.get(`guild_${interaction.guild.id}.ticket.category`)}>` : `${client.emotes.reply} Disabled ${client.emotes.disable1}${client.emotes.disable2}`}`, inline: false },
-            { name: `Guild Ticket Menu Option:`, value: `${await db.has(`guild_${interaction.guild.id}.ticket.menu_option`) ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply}${(await db.get(`guild_${interaction.guild.id}.ticket.menu_option`)).map(o => `**Name:** \`${o.value}\` | **Emoji:** ${o.emoji ? o.emoji : "none"}`).join(`\n${client.emotes.reply}`)}` : `${client.emotes.reply} Disabled ${client.emotes.disable1}${client.emotes.disable2}`}`, inline: false }
-          ]).setFooter({ text: `Setting • Requested By ${interaction.user.tag} `, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(interaction.guild.iconURL({ dynamic: true })).setTimestamp()],
-          components: [new ActionRowBuilder().addComponents(menu), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setDisabled(true).setEmoji(client.emotes.home).setCustomId("home_page"))],
-          withResponse: true
-        }).then(async(msg) =>{
+/**
+ * Build the main settings dashboard embed with current guild configuration.
+ */
+async function buildSettingsEmbed(db, guild, client, interaction) {
+  const guildId = guild.id;
+  const [
+    type,
+    adminRole,
+    modRole,
+    staffRole,
+    modLog,
+    category,
+    menuOptions
+  ] = await Promise.all([
+    db.get(`guild_${guildId}.ticket.type`),
+    db.get(`guild_${guildId}.ticket.admin_role`),
+    db.get(`guild_${guildId}.permissions.roles.moderator`),
+    db.get(`guild_${guildId}.permissions.roles.staff`),
+    db.get(`guild_${guildId}.modlog`),
+    db.get(`guild_${guildId}.ticket.category`),
+    db.get(`guild_${guildId}.ticket.menu_option`)
+  ]);
+
+  const fields = [
+    { 
+      name: `Guild Ticket Type:`, 
+      value: type 
+        ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply} \`${type}\`` 
+        : `${client.emotes.reply} \`Reason - Menu - UserTag\` (Default)`, 
+      inline: false 
+    },
+    { 
+      name: `Guild Admin Role:`, 
+      value: adminRole 
+        ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply}<@&${adminRole}>` 
+        : `${client.emotes.reply} Disabled ${client.emotes.disable1}${client.emotes.disable2}`, 
+      inline: true 
+    },
+    { 
+      name: `Guild Mod Role:`, 
+      value: modRole 
+        ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply}<@&${modRole}>` 
+        : `${client.emotes.reply} Disabled ${client.emotes.disable1}${client.emotes.disable2}`, 
+      inline: true 
+    },
+    { 
+      name: `Guild Staff Role:`, 
+      value: staffRole 
+        ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply}<@&${staffRole}>` 
+        : `${client.emotes.reply} Disabled ${client.emotes.disable1}${client.emotes.disable2}`, 
+      inline: true 
+    },
+    { 
+      name: `Guild Mod Log:`, 
+      value: modLog 
+        ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply} <#${modLog}>` 
+        : `${client.emotes.reply} Disabled ${client.emotes.disable1}${client.emotes.disable2}`, 
+      inline: false 
+    },
+    { 
+      name: `Guild Parent Channel:`, 
+      value: category 
+        ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply} <#${category}>` 
+        : `${client.emotes.reply} Disabled ${client.emotes.disable1}${client.emotes.disable2}`, 
+      inline: false 
+    },
+    { 
+      name: `Guild Ticket Menu Options:`, 
+      value: (menuOptions && menuOptions.length) 
+        ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply}${menuOptions.map(o => `**Name:** \`${o.value}\` | **Emoji:** ${o.emoji || "none"}`).join(`\n${client.emotes.reply}`)}` 
+        : `${client.emotes.reply} Disabled ${client.emotes.disable1}${client.emotes.disable2}`, 
+      inline: false 
+    }
+  ];
+
+  return premiumEmbed(client, {
+    title: `${client.emotes.setting}| Welcome to the setting`,
+    description: `This is __${client.user.username}__ setting from **${guild.name}** and you can setup all things you need for setting up your guild.`,
+    fields,
+    thumbnail: guild.iconURL({ dynamic: true })
+  }).setFooter({ text: `Setting • Requested By ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) });
+}
+
+module.exports = {
+  name: 'settings',
+  category: 'Setup 💻',
+  type: ApplicationCommandType.ChatInput,
+  cooldown: 1,
+  description: "Show a dashboard of guild setting for you.",
+  userPermissions: ["ManageChannels", "ManageGuild", "SendMessages"],
+  botPermissions: ["ManageChannels", "SendMessages", "EmbedLinks"],
+  run: async (client, interaction) => {
+    let db = client.db;
+    try {
+      await interaction.deferReply({ flags: 64 });
+
+      let menu = new StringSelectMenuBuilder().setCustomId("setup_menu").setMaxValues(1).setMinValues(1).setPlaceholder(`${client.emotes.setting}| Click me to setup !!`).addOptions([
+        { label: `Setup Bot Language`,       value: `stlanguage`, emoji: `${client.emotes.language}` },
+        { label: `Setup Admin Role`,          value: `stadmin`,    emoji: `${client.emotes.admin}` },
+        { label: `Setup Mod Role`,            value: `stmod`,      emoji: `⚒️` },
+        { label: `Setup Staff Role`,          value: `ststaff`,    emoji: `🛡️` },
+        { label: `Setup Ticket Category`,     value: `stcategory`, emoji: `${client.emotes.category}` },
+        { label: `Setup Ticket Log`,          value: `stlog`,      emoji: `${client.emotes.log}` },
+        { label: `Setup Ticket Type`,         value: `sttype`,     emoji: `${client.emotes.type}` },
+        { label: `Setup Ticket Menu Option`,  value: `stoption`,   emoji: `${client.emotes.option}` },
+        { label: `Setup Max Open Tickets`,    value: `stmaxtickets`, emoji: `🎟️` },
+        { label: `Setup Ticket Cooldown`,     value: `stcooldown`,   emoji: `⏳` },
+        { label: `Setup Transcript Channel`,  value: `sttranscript`, emoji: `📄` },
+        { label: `Toggle Auto-Close`,         value: `stAutoClose`,  emoji: `🕒` },
+        { label: `Toggle Staff Reminders`,    value: `stReminders`,  emoji: `🔔` },
+        { label: `Toggle Rating DMs`,         value: `stRatings`,    emoji: `⭐` },
+      ]);
+      
+      const time = 120000;
+      const embed = await buildSettingsEmbed(db, interaction.guild, client, interaction);
+
+      const msg = await interaction.editReply({
+        embeds: [embed],
+        components: [
+          new ActionRowBuilder().addComponents(menu), 
+          new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), 
+            new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`)
+          ), 
+          new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setDisabled(true).setEmoji(client.emotes.home).setCustomId("home_page")
+          )
+        ],
+        withResponse: true
+      });
           const collector = msg.createMessageComponentCollector({ time: time });
           
           collector.on('collect', async (m) => {
@@ -66,92 +151,110 @@ const {
 
             if (m.isButton()) {
               if (m.customId === "home_page") {
+                const homeEmbed = await buildSettingsEmbed(db, interaction.guild, client, interaction);
                 m.update({
-                  embeds: [new EmbedBuilder().setTitle(`${client.emotes.setting}| Welcome to the setting`).setColor(client.colors.none).setDescription(`This is __${client.user.username}__ setting from **${interaction.guild.name}** and you can setup all things you need for setting up your guild.`).addFields([
-                    { name: `Guild Ticket Type:`, value: `${await db.has(`guild_${interaction.guild.id}.ticket.type`) ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply} \`${await db.get(`guild_${interaction.guild.id}.ticket.type`)}\`` : `${client.emotes.reply} \`Reason - Menu - UserTag\` (Default)`}`, inline: false },
-                    { name: `Guild Admin Role:`, value: `${await db.has(`guild_${interaction.guild.id}.ticket.admin_role`) ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply}<@&${await db.get(`guild_${interaction.guild.id}.ticket.admin_role`)}>` : `${client.emotes.reply} Disabled ${client.emotes.disable1}${client.emotes.disable2}`}`, inline: true },
-                    { name: `Guild Mod Role:`, value: `${await db.has(`guild_${interaction.guild.id}.permissions.roles.moderator`) ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply}<@&${await db.get(`guild_${interaction.guild.id}.permissions.roles.moderator`)}>` : `${client.emotes.reply} Disabled ${client.emotes.disable1}${client.emotes.disable2}`}`, inline: true },
-                    { name: `Guild Staff Role:`, value: `${await db.has(`guild_${interaction.guild.id}.permissions.roles.staff`) ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply}<@&${await db.get(`guild_${interaction.guild.id}.permissions.roles.staff`)}>` : `${client.emotes.reply} Disabled ${client.emotes.disable1}${client.emotes.disable2}`}`, inline: true },
-                    { name: `Guild Mod Log:`, value: `${await db.has(`guild_${interaction.guild.id}.modlog`) ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply} <#${await db.get(`guild_${interaction.guild.id}.modlog`)}>` : `${client.emotes.reply} Disabled ${client.emotes.disable1}${client.emotes.disable2}`}`, inline: false },
-                    { name: `Guild Parent Channel:`, value: `${await db.has(`guild_${interaction.guild.id}.ticket.category`) ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply} <#${await db.get(`guild_${interaction.guild.id}.ticket.category`)}>` : `${client.emotes.reply} Disabled ${client.emotes.disable1}${client.emotes.disable2}`}`, inline: false },
-                    { name: `Guild Ticket Menu Option:`, value: `${await db.has(`guild_${interaction.guild.id}.ticket.menu_option`) ? `${client.emotes.reply} Enable ${client.emotes.enable1}${client.emotes.enable2}\n${client.emotes.reply}${(await db.get(`guild_${interaction.guild.id}.ticket.menu_option`)).map(o => `**Name:** \`${o.value}\` | **Emoji:** ${o.emoji ? o.emoji : "none"}`).join(`\n${client.emotes.reply}`)}` : `${client.emotes.reply} Disabled ${client.emotes.disable1}${client.emotes.disable2}`}`, inline: false }
-                  ]).setFooter({ text: `Setting • Requested By ${interaction.user.tag} `, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(interaction.guild.iconURL({ dynamic: true })).setTimestamp()],
-                  components: [new ActionRowBuilder().addComponents(menu), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page").setDisabled(true))],
-                })
+                  embeds: [homeEmbed],
+                  components: [
+                    new ActionRowBuilder().addComponents(menu), 
+                    new ActionRowBuilder().addComponents(
+                      new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), 
+                      new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`)
+                    ), 
+                    new ActionRowBuilder().addComponents(
+                      new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page").setDisabled(true)
+                    )
+                  ],
+                }).catch(() => null);
               }
               if (m.customId === "menu_option") {
-                const input_1 = new TextInputBuilder()
-                  .setCustomId('name')
-                  .setLabel("What is option name?")
-                  .setRequired(true)
-                  .setPlaceholder('Enter some text!')
-                  .setStyle(TextInputStyle.Short)
-                const input_2 = new TextInputBuilder()
-                  .setCustomId('emoji')
-                  .setLabel("What is option emoji?")
-                  .setRequired(false)
-                  .setPlaceholder('Enter some emoji!')
-                  .setStyle(TextInputStyle.Short)
-                const modal = new ModalBuilder()
-                  .setCustomId('menu_option_modal')
-                  .setTitle('Ticket System Menu Option')
-                  .addComponents(new ActionRowBuilder().addComponents(input_1), new ActionRowBuilder().addComponents(input_2));
-                await m.showModal(modal)
+                const input_1 = new TextInputBuilder().setCustomId('name').setLabel("Option Name").setPlaceholder('e.g. Technical Support').setRequired(true).setStyle(TextInputStyle.Short);
+                const input_2 = new TextInputBuilder().setCustomId('emoji').setLabel("Option Emoji (Optional)").setPlaceholder('e.g. 🛠️').setRequired(false).setStyle(TextInputStyle.Short);
+                const modal = new ModalBuilder().setCustomId('menu_option_modal').setTitle('Add Ticket Menu Option').addComponents(new ActionRowBuilder().addComponents(input_1), new ActionRowBuilder().addComponents(input_2));
+                await m.showModal(modal);
+
+                const filter = (sub) => sub.customId === 'menu_option_modal' && sub.user.id === interaction.user.id;
+                m.awaitModalSubmit({ filter, time: 60000 }).then(async (ms) => {
+                  const name = ms.fields.getTextInputValue('name');
+                  const emoji = ms.fields.getTextInputValue('emoji');
+                  await db.push(`guild_${interaction.guild.id}.ticket.menu_option`, { label: name, value: name, emoji: emoji || null });
+                  
+                  const success = premiumEmbed(client, {
+                    title: `✅  Option Added`,
+                    description: `Successfully added **${name}** to the ticket menu.\n**Emoji:** ${emoji || 'None'}`,
+                    color: client.colors?.success
+                  });
+                  ms.update({
+                    embeds: [success],
+                    components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page"))]
+                  }).catch(() => null);
+                }).catch(() => null);
               }
               if (m.customId === "remove_admin_role") {
                 if (await db.has(`guild_${interaction.guild.id}.ticket.admin_role`)) {
-                  await db.delete(`guild_${interaction.guild.id}.ticket.admin_role`)
+                  await db.delete(`guild_${interaction.guild.id}.ticket.admin_role`);
                   m.update({
-                    embeds: [new EmbedBuilder().setTitle(`${client.emotes.system}| Admin Role Disabled`).setColor(client.colors.none).setDescription(`**admin role** is successfully disabled and remove it on guild.`).setFooter({ text: `Setting • Requested By ${m.user.tag} `, iconURL: m.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(m.guild.iconURL({ dynamic: true }))],
-                    components: [new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder({ customId: 'none', placeholder: 'Admin Role Is Disabled!!', disabled: true })), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Remove Admin Role').setEmoji(client.emotes.trash).setCustomId("remove_admin_role").setDisabled(true), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page").setDisabled(false))]
-                  })
+                    embeds: [premiumEmbed(client, { title: `🛡️  Admin Role Disabled`, description: `The **Admin Role** has been successfully removed from the configuration.`, color: client.colors?.error || '#EF4444' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })],
+                    components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page"))]
+                  }).catch(() => null);
                 } else {
                   m.update({
-                    embeds: [new EmbedBuilder().setTitle(`${client.emotes.system}| Admin Role Setting`).setColor(client.colors.none).setDescription(`**Please before disabled *admin role* setup it:**\n Select  role you need to add on bot **admin role** on menu below.`).setFooter({ text: `Setting • Requested By ${m.user.tag} `, iconURL: m.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(m.guild.iconURL({ dynamic: true }))],
-                    components: [new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder({ customId: 'admin_role', placeholder: 'Select Some Roles!!' })), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Remove Admin Role').setEmoji(client.emotes.trash).setCustomId("remove_admin_role").setDisabled(true), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page").setDisabled(false))]
-                  })
+                    embeds: [premiumEmbed(client, { title: `🛡️  Admin Role Setting`, description: `Select a role below to set as the **Admin Role**. This role will have full access to all tickets.`, color: '#3B82F6' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })],
+                    components: [
+                      new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder({ customId: 'admin_role', placeholder: 'Select Admin Role' })),
+                      new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page"))
+                    ]
+                  }).catch(() => null);
                 }
               }
               if (m.customId === "remove_parent_channel") {
                 if (await db.has(`guild_${interaction.guild.id}.ticket.category`)) {
-                  await db.delete(`guild_${interaction.guild.id}.ticket.category`)
+                  await db.delete(`guild_${interaction.guild.id}.ticket.category`);
                   m.update({
-                    embeds: [new EmbedBuilder().setTitle(`${client.emotes.system}| Parent Channel Disabled`).setColor(client.colors.none).setDescription(`**parent channel** is successfully disabled and remove it on guild.`).setFooter({ text: `Setting • Requested By ${m.user.tag} `, iconURL: m.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(m.guild.iconURL({ dynamic: true }))],
-                    components: [new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder({ customId: 'none', placeholder: 'Parent Channel Is Disabled!!', disabled: true })), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Remove Parent Channel').setEmoji(client.emotes.trash).setCustomId("remove_parent_channel").setDisabled(true), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page").setDisabled(false))]
-                  })
+                    embeds: [premiumEmbed(client, { title: `📂  Parent Channel Disabled`, description: `The **Parent Category** has been removed. New tickets will be created outside of any category.`, color: '#EF4444' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })],
+                    components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page"))]
+                  }).catch(() => null);
                 } else {
                   m.update({
-                    embeds: [new EmbedBuilder().setTitle(`${client.emotes.system}| Parent Channel Setting`).setColor(client.colors.none).setDescription(`**Please before disabled *parent channel* setup it:**\nSelect category channel you need to add on bot **parent channel** on menu below.`).setFooter({ text: `Setting • Requested By ${m.user.tag} `, iconURL: m.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(m.guild.iconURL({ dynamic: true }))],
-                    components: [new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder({ customId: 'parent_channel', placeholder: 'Select Some Category!!', channelTypes: [ChannelType.GuildCategory] })), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Remove Parent Channel').setEmoji(client.emotes.trash).setCustomId("remove_parent_channel").setDisabled(true), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page").setDisabled(false))]
-                  })
+                    embeds: [premiumEmbed(client, { title: `📂  Parent Category Setting`, description: `Select a Category below to host new tickets.`, color: '#3B82F6' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })],
+                    components: [
+                      new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder({ customId: 'parent_channel', placeholder: 'Select Category', channelTypes: [ChannelType.GuildCategory] })),
+                      new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page"))
+                    ]
+                  }).catch(() => null);
                 }
               }
               if (m.customId === "remove_mod_log") {
                 if (await db.has(`guild_${interaction.guild.id}.modlog`)) {
-                  await db.delete(`guild_${interaction.guild.id}.modlog`)
+                  await db.delete(`guild_${interaction.guild.id}.modlog`);
                   m.update({
-                    embeds: [new EmbedBuilder().setTitle(`${client.emotes.system}| Mod Log Disabled`).setColor(client.colors.none).setDescription(`**mod log** is successfully disabled and remove it on guild.`).setFooter({ text: `Setting • Requested By ${m.user.tag} `, iconURL: m.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(m.guild.iconURL({ dynamic: true }))],
-                    components: [new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder({ customId: 'none', placeholder: 'Mod Log Is Disabled!!', disabled: true })), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Remove Mod Log').setEmoji(client.emotes.trash).setCustomId("remove_mod_log").setDisabled(true), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page").setDisabled(false))]
-                  })
+                    embeds: [premiumEmbed(client, { title: `📜  Mod Log Disabled`, description: `Audit logging has been disabled for this guild.`, color: '#EF4444' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })],
+                    components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page"))]
+                  }).catch(() => null);
                 } else {
                   m.update({
-                    embeds: [new EmbedBuilder().setTitle(`${client.emotes.system}| Mod Log Setting`).setColor(client.colors.none).setDescription(`**Please before disabled *mod log* setup it:**\nSelect channel you need to add on bot **mod log** on menu below.`).setFooter({ text: `Setting • Requested By ${m.user.tag} `, iconURL: m.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(m.guild.iconURL({ dynamic: true }))],
-                    components: [new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder({ customId: 'mod_log', placeholder: 'Select Some Channel!!', channelTypes: [ChannelType.GuildText] })), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Remove Mod Log').setEmoji(client.emotes.trash).setCustomId("remove_mod_log").setDisabled(true), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page").setDisabled(false))]
-                  })
+                    embeds: [premiumEmbed(client, { title: `📜  Mod Log Setting`, description: `Select a text channel below to receive ticket logs and audit trails.`, color: '#3B82F6' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })],
+                    components: [
+                      new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder({ customId: 'mod_log', placeholder: 'Select Log Channel', channelTypes: [ChannelType.GuildText] })),
+                      new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page"))
+                    ]
+                  }).catch(() => null);
                 }
               }
               if (m.customId === "remove_menu_option") {
                 if (await db.has(`guild_${interaction.guild.id}.ticket.menu_option`)) {
-                  await db.delete(`guild_${interaction.guild.id}.ticket.menu_option`)
+                  await db.delete(`guild_${interaction.guild.id}.ticket.menu_option`);
                   m.update({
-                    embeds: [new EmbedBuilder().setTitle(`${client.emotes.system}| Menu Option Disabled`).setColor(client.colors.none).setDescription(`**menu option** is successfully disabled and remove it on guild.`).setFooter({ text: `Setting • Requested By ${m.user.tag} `, iconURL: m.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(m.guild.iconURL({ dynamic: true }))],
-                    components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Primary).setLabel('Menu Option Disbled').setEmoji(client.emotes.option).setCustomId(`menu_option`).setDisabled(true)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Remove Menu Option').setEmoji(client.emotes.trash).setCustomId("remove_menu_option").setDisabled(true), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page").setDisabled(false))]
-                  })
+                    embeds: [premiumEmbed(client, { title: `📋  Menu Options Reset`, description: `The ticket menu options have been cleared. Users will now see the default ticket creation button.`, color: '#EF4444' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })],
+                    components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page"))]
+                  }).catch(() => null);
                 } else {
                   m.update({
-                    embeds: [new EmbedBuilder().setTitle(`${client.emotes.system}| Menu Option Setting`).setColor(client.colors.none).setDescription(`**Please before disabled *menu option* setup it:**\nSelect channel you need to add on bot **menu option** on menu below.`).setFooter({ text: `Setting • Requested By ${m.user.tag} `, iconURL: m.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(m.guild.iconURL({ dynamic: true }))],
-                    components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Primary).setLabel('Setup Menu Option').setEmoji(client.emotes.option).setCustomId(`menu_option`)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Remove Menu Option').setEmoji(client.emotes.trash).setCustomId("remove_menu_option").setDisabled(true), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page").setDisabled(false))]
-                  })
+                    embeds: [premiumEmbed(client, { title: `📋  Menu Options Setting`, description: `Click the button below to add custom choices to your ticket select menu.`, color: '#3B82F6' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })],
+                    components: [
+                      new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Primary).setLabel('Add Menu Option').setEmoji(client.emotes.option).setCustomId(`menu_option`)),
+                      new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page"))
+                    ]
+                  }).catch(() => null);
                 }
               }
               if (m.customId === "remove_transcript_channel") {
@@ -213,28 +316,48 @@ const {
                   })
                 }
                 if (m.values[0] === "stadmin") {
+                  const cur = await db.get(`guild_${interaction.guild.id}.ticket.admin_role`);
                   m.update({
-                    embeds: [new EmbedBuilder().setTitle(`${client.emotes.system}| Admin Role Setting`).setColor(client.colors.none).setDescription(`please select  role you need to add on bot **admin role** on menu below.`).setFooter({ text: `Setting • Requested By ${m.user.tag} `, iconURL: m.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(m.guild.iconURL({ dynamic: true }))],
-                    components: [new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder({ customId: 'admin_role', placeholder: 'Select Some Roles!!' })), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Remove Admin Role').setEmoji(client.emotes.trash).setCustomId("remove_admin_role"), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page").setDisabled(false))]
-                  })
+                    embeds: [premiumEmbed(client, { title: `🛡️  Admin Role Setting`, description: `Select the role that will have full administrator control over tickets.\n\n**Current:** ${cur ? `<@&${cur}>` : '`Not Set`'}`, color: '#3B82F6' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })],
+                    components: [
+                      new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder({ customId: 'admin_role', placeholder: 'Select Admin Role' })),
+                      new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Remove Admin Role').setEmoji(client.emotes.trash).setCustomId("remove_admin_role"), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page"))
+                    ]
+                  }).catch(() => null);
                 }
                 if (m.values[0] === "stcategory") {
+                  const cur = await db.get(`guild_${interaction.guild.id}.ticket.category`);
                   m.update({
-                    embeds: [new EmbedBuilder().setTitle(`${client.emotes.system}| Parent Channel Setting`).setColor(client.colors.none).setDescription(`please select category channel you need to add on bot **parent channel** on menu below.`).setFooter({ text: `Setting • Requested By ${m.user.tag} `, iconURL: m.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(m.guild.iconURL({ dynamic: true }))],
-                    components: [new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder({ customId: 'parent_channel', placeholder: 'Select Some Category!!', channelTypes: [ChannelType.GuildCategory] })), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Remove Parent Channel').setEmoji(client.emotes.trash).setCustomId("remove_parent_channel"), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page").setDisabled(false))]
-                  })
+                    embeds: [premiumEmbed(client, { title: `📂  Parent Category Setting`, description: `Select the category where new tickets will be created.\n\n**Current:** ${cur ? `<#${cur}>` : '`Not Set`'}`, color: '#3B82F6' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })],
+                    components: [
+                      new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder({ customId: 'parent_channel', placeholder: 'Select Category', channelTypes: [ChannelType.GuildCategory] })),
+                      new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Remove Parent Channel').setEmoji(client.emotes.trash).setCustomId("remove_parent_channel"), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page"))
+                    ]
+                  }).catch(() => null);
                 }
                 if (m.values[0] === "stlog") {
+                  const cur = await db.get(`guild_${interaction.guild.id}.modlog`);
                   m.update({
-                    embeds: [new EmbedBuilder().setTitle(`${client.emotes.system}| Mod Log Setting`).setColor(client.colors.none).setDescription(`please select channel you need to add on bot **mod log** on menu below.`).setFooter({ text: `Setting • Requested By ${m.user.tag} `, iconURL: m.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(m.guild.iconURL({ dynamic: true }))],
-                    components: [new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder({ customId: 'mod_log', placeholder: 'Select Some Channel!!', channelTypes: [ChannelType.GuildText] })), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Remove Mod Log').setEmoji(client.emotes.trash).setCustomId("remove_mod_log"), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page").setDisabled(false))]
-                  })
+                    embeds: [premiumEmbed(client, { title: `📜  Mod Log Setting`, description: `Select the channel where ticket actions and logs will be sent.\n\n**Current:** ${cur ? `<#${cur}>` : '`Not Set`'}`, color: '#3B82F6' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })],
+                    components: [
+                      new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder({ customId: 'mod_log', placeholder: 'Select Log Channel', channelTypes: [ChannelType.GuildText] })),
+                      new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Remove Mod Log').setEmoji(client.emotes.trash).setCustomId("remove_mod_log"), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page"))
+                    ]
+                  }).catch(() => null);
                 }
                 if (m.values[0] === "stoption") {
+                  const cur = await db.get(`guild_${interaction.guild.id}.ticket.menu_option`);
                   m.update({
-                    embeds: [new EmbedBuilder().setTitle(`${client.emotes.system}| Ticket Menu Option Setting`).setColor(client.colors.none).setDescription(`please click and write option you need to add on bot **menu option** on button below.`).setFooter({ text: `Setting • Requested By ${m.user.tag} `, iconURL: m.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(m.guild.iconURL({ dynamic: true }))],
-                    components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Primary).setLabel('Setup Menu Option').setEmoji(client.emotes.option).setCustomId(`menu_option`)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Remove Menu Option').setEmoji(client.emotes.trash).setCustomId("remove_menu_option"), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page").setDisabled(false))]
-                  })
+                    embeds: [premiumEmbed(client, { 
+                      title: `📋  Menu Option Setting`, 
+                      description: `Setup custom choices for your ticket creation menu.\n\n**Current Options:** ${cur?.length || 0}`, 
+                      color: '#3B82F6' 
+                    }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })],
+                    components: [
+                      new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Primary).setLabel('Add Menu Option').setEmoji(client.emotes.option).setCustomId(`menu_option`)),
+                      new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Reset Menu Options').setEmoji(client.emotes.trash).setCustomId("remove_menu_option"), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page"))
+                    ]
+                  }).catch(() => null);
                 }
                 if (m.values[0] === "sttype") {
                   const curType = (await db.get(`guild_${interaction.guild.id}.ticket.type`)) || "ticket-username";
@@ -363,24 +486,22 @@ const {
             }
             if (m.isChannelSelectMenu()) {
               if (m.customId === "parent_channel") {
-                m.values.forEach(async (value) => {
-                  let channel = m.guild.channels.cache.find(r => r.id === value);
-                  await db.set(`guild_${interaction.guild.id}.ticket.category`, channel.id)
-                  m.update({
-                    embeds: [new EmbedBuilder().setTitle(`${client.emotes.system}| Parent Channel Setuped`).setColor(client.colors.none).setDescription(`guild **parent channel** successfully setuped to ${channel}.`).setFooter({ text: `Setting • Requested By ${m.user.tag} `, iconURL: m.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(m.guild.iconURL({ dynamic: true }))],
-                    components: [new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder({ customId: 'none', placeholder: 'Parent Channel Is Enabled!!', disabled: true })), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Remove Parent Channel').setEmoji(client.emotes.trash).setCustomId("remove_parent_channel"), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page").setDisabled(false))]
-                  })
-                })
+                const channelId = m.values[0];
+                const channel = m.guild.channels.cache.get(channelId);
+                await db.set(`guild_${interaction.guild.id}.ticket.category`, channelId);
+                m.update({
+                  embeds: [premiumEmbed(client, { title: `✅  Category Set`, description: `New tickets will now be created in the **${channel.name}** category.`, color: client.colors?.success || '#10B981' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })],
+                  components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page"))]
+                }).catch(() => null);
               }
               if (m.customId === "mod_log") {
-                m.values.forEach(async (value) => {
-                  let channel = m.guild.channels.cache.find(r => r.id === value);
-                  await db.set(`guild_${interaction.guild.id}.modlog`, channel.id)
-                  m.update({
-                    embeds: [new EmbedBuilder().setTitle(`${client.emotes.system}| Mod Log Setuped`).setColor(client.colors.none).setDescription(`guild **mod log** successfully setuped to ${channel}.`).setFooter({ text: `Setting • Requested By ${m.user.tag} `, iconURL: m.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(m.guild.iconURL({ dynamic: true }))],
-                    components: [new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder({ customId: 'none', placeholder: 'Mod Log Is Enabled!!', disabled: true })), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Remove Mod Log').setEmoji(client.emotes.trash).setCustomId("remove_mod_log"), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page").setDisabled(false))]
-                  })
-                })
+                const channelId = m.values[0];
+                const channel = m.guild.channels.cache.get(channelId);
+                await db.set(`guild_${interaction.guild.id}.modlog`, channelId);
+                m.update({
+                  embeds: [premiumEmbed(client, { title: `✅  Mod Log Set`, description: `Logging channel set to ${channel}.`, color: client.colors?.success }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })],
+                  components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page"))]
+                }).catch(() => null);
               }
               if (m.customId === 'transcript_channel') {
                 const chId = m.values[0];
@@ -425,15 +546,14 @@ const {
             }
             if (m.isRoleSelectMenu()) {
               if (m.customId === "admin_role") {
-                m.values.forEach(async (value) => {
-                  let role = m.guild.roles.cache.find(r => r.id === value);
-                  await db.set(`guild_${interaction.guild.id}.ticket.admin_role`, role.id)
-                  await db.set(`guild_${interaction.guild.id}.permissions.roles.admin`, role.id)
-                  m.update({
-                    embeds: [new EmbedBuilder().setTitle(`${client.emotes.system}| Admin Role Setuped`).setColor(client.colors.none).setDescription(`guild **admin role** successfully setuped to ${role}.`).setFooter({ text: `Setting • Requested By ${m.user.tag} `, iconURL: m.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(m.guild.iconURL({ dynamic: true }))],
-                    components: [new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder({ customId: 'none', placeholder: 'Admin Role Is Enabled!!', disabled: true })), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Remove Admin Role').setEmoji(client.emotes.trash).setCustomId("remove_admin_role"), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page").setDisabled(false))]
-                  })
-                })
+                const roleId = m.values[0];
+                const role = m.guild.roles.cache.get(roleId);
+                await db.set(`guild_${interaction.guild.id}.ticket.admin_role`, roleId);
+                await db.set(`guild_${interaction.guild.id}.permissions.roles.admin`, roleId);
+                m.update({
+                  embeds: [premiumEmbed(client, { title: `✅  Admin Role Set`, description: `The **${role.name}** role has been set as the Ticket Administrator.`, color: client.colors?.success || '#10B981' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })],
+                  components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page"))]
+                }).catch(() => null);
               }
               if (m.customId === 'mod_role') {
                 const roleId = m.values[0];
@@ -448,35 +568,15 @@ const {
             }
           });
 
-          await interaction.awaitModalSubmit({ time: time }).then(async (m) => {
-            try {
-              if (m.user.id !== interaction.user.id) return errorMessage(client, m, `This message is only for ${interaction.user} and you cannot use it.`)
-              if (m.isModalSubmit()) {
-                if (m.customId === "menu_option_modal") {
-                  const name = m.fields.getTextInputValue('name');
-                  const emoji = m.fields.getTextInputValue('emoji');
-                  if (emoji) await db.push(`guild_${m.guild.id}.ticket.menu_option`, { label: name, value: name, emoji: emoji })
-                  else await db.push(`guild_${m.guild.id}.ticket.menu_option`, { label: name, value: name })
-                  m.update({
-                    embeds: [new EmbedBuilder().setTitle(`${client.emotes.system}| Menu Option Setuped`).setColor(client.colors.none).setDescription(`guild **menu option** successfully setuped.\n**Name:** \`${name}\` | **Emoji:** ${emoji ? `${emoji}` : "none"}.`).setFooter({ text: `Setting • Requested By ${m.user.tag} `, iconURL: m.user.displayAvatarURL({ dynamic: true }) }).setThumbnail(m.guild.iconURL({ dynamic: true }))],
-                    components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Primary).setLabel('Menu Option Enabel').setEmoji(client.emotes.option).setCustomId(`menu_option`).setDisabled(true)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`)), new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Remove Menu Option').setEmoji(client.emotes.trash).setCustomId("remove_menu_option"), new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page").setDisabled(false))]
-                  })
-                }
-              }
-            } catch (e) {
-              // Safe catch
-            }
-          }).catch(() => null);
-
           setTimeout(() => {
             interaction.editReply({
-              components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('timeout').setEmoji(client.emotes.alert).setLabel('Time Is Up').setStyle(ButtonStyle.Primary).setDisabled(true)).addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`))]
+              components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('timeout').setEmoji(client.emotes.alert).setLabel('Session Expired').setStyle(ButtonStyle.Primary).setDisabled(true)).addComponents(new ButtonBuilder().setStyle(ButtonStyle.Secondary).setLabel('Report').setEmoji(client.emotes.report).setCustomId(`report`), new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Support').setEmoji(client.emotes.help).setURL(`${client.config.discord.server_support}`))]
             }).catch(() => null);
           }, time);
-        }).catch(() => null);
 
       } catch (err) {
         console.error(err);
+        errorMessage(client, interaction, err.message);
       }
     }
-  }
+};
