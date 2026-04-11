@@ -6,20 +6,31 @@ const { ChannelType } = require('discord.js');
 const { premiumEmbed, ticketControlRow } = require('../functions/functions');
 const transcriptService = require('./transcriptService');
 const analyticsService  = require('./analyticsService');
+const Logger            = require('../utils/logger');
 
 const CHECK_INTERVAL_MS  = 30 * 60 * 1000; // Check every 30 min
 const DEFAULT_INACTIVE_H = 24;              // Default: 24 hours of inactivity
 const WARN_BEFORE_MIN    = 60;             // Warn 60 min before auto-close
 
-/**
- * Start the auto-close loop.
- */
+let _interval = null;
+
 function start(client) {
-  console.log('[AutoClose] Service started.');
-  setInterval(() => run(client), CHECK_INTERVAL_MS);
-  // Also run immediately after 5 min (let bot fully boot)
-  setTimeout(() => run(client), 5 * 60 * 1000);
+  if (_interval) clearInterval(_interval);
+  _interval = setInterval(() => {
+    try { run(client); } catch(e) { Logger.error('autoCloseService', e.message); }
+  }, CHECK_INTERVAL_MS);
+  
+  setTimeout(() => {
+    try { run(client); } catch(e) { Logger.error('autoCloseService', e.message); }
+  }, 5 * 60 * 1000);
 }
+
+function stop() {
+  if (_interval) clearInterval(_interval);
+  _interval = null;
+}
+
+async function healthCheck() { /* stateless */ }
 
 async function run(client) {
   const db = client.db;
@@ -94,8 +105,8 @@ async function run(client) {
       }
     }
   } catch (e) {
-    console.error('[AutoClose] Error:', e.message);
+    Logger.error('autoCloseService', `Loop Error: ${e.message}`);
   }
 }
 
-module.exports = { start };
+module.exports = { start, stop, healthCheck };

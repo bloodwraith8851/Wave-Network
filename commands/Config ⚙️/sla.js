@@ -1,124 +1,104 @@
-/**
- * sla.js — /sla command
- * View and configure SLA (Service Level Agreement) targets per category.
- *
- * /sla view
- * /sla set <category> <minutes>
- * /sla check          — run manual SLA check now
- */
 const {
   ApplicationCommandType,
   ApplicationCommandOptionType,
 } = require('discord.js');
 const { premiumEmbed, errorMessage } = require(`${process.cwd()}/functions/functions`);
-const permSvc  = require(`${process.cwd()}/services/permissionService`);
-const slaSvc   = require(`${process.cwd()}/services/slaService`);
-const auditSvc = require(`${process.cwd()}/services/auditService`);
-
-function fmtMinutes(m) {
-  if (!m) return 'N/A';
-  if (m < 60) return `${m}m`;
-  const h = Math.floor(m / 60); const rem = m % 60;
-  return rem > 0 ? `${h}h ${rem}m` : `${h}h`;
-}
 
 module.exports = {
-  name: 'sla',
-  description: 'View and configure Service Level Agreement (SLA) response time targets.',
-  category: 'Config ⚙️',
-  cooldown: 5,
-  userPermissions: ['SendMessages'],
-  botPermissions: ['SendMessages', 'EmbedLinks'],
-  type: ApplicationCommandType.ChatInput,
+  name:            'sla',
+  description:     'Configure SLA (Service Level Agreement) response targets.',
+  category:        'Config ⚙️',
+  cooldown:        5,
+  type:            ApplicationCommandType.ChatInput,
+  userPermissions: ['ManageGuild'],
+  botPermissions:  ['SendMessages', 'EmbedLinks'],
   options: [
     {
-      name: 'view',
-      description: 'View current SLA configuration.',
-      type: ApplicationCommandOptionType.Subcommand,
+      name:        'set',
+      description: 'Set the target SLA time (in minutes).',
+      type:        ApplicationCommandOptionType.Subcommand,
+      options: [{
+        name:        'minutes',
+        description: 'Target response time (e.g. 15 for 15 minutes).',
+        type:        ApplicationCommandOptionType.Integer,
+        required:    true,
+        min_value:   1,
+        max_value:   10080, // 1 week
+      }],
     },
     {
-      name: 'set',
-      description: 'Set an SLA target for a category or set the default.',
-      type: ApplicationCommandOptionType.Subcommand,
-      options: [
-        { name: 'category', description: 'Category name or "default".', type: ApplicationCommandOptionType.String, required: true },
-        { name: 'minutes',  description: 'Target response time in minutes (e.g. 60 = 1 hour).', type: ApplicationCommandOptionType.Integer, required: true },
-      ],
+      name:        'view',
+      description: 'View current SLA target and metrics.',
+      type:        ApplicationCommandOptionType.Subcommand,
     },
     {
-      name: 'check',
-      description: 'Run an immediate SLA check across all open tickets.',
-      type: ApplicationCommandOptionType.Subcommand,
+      name:        'reset',
+      description: 'Disable the SLA target.',
+      type:        ApplicationCommandOptionType.Subcommand,
     },
   ],
 
   run: async (client, interaction) => {
-    const db      = client.db;
-    const sub     = interaction.options.getSubcommand();
-    const guildId = interaction.guild.id;
+    const db  = client.db;
+    const gid = interaction.guild.id;
+    const sub = interaction.options.getSubcommand();
 
-    const denied = await permSvc.requirePermission(db, interaction.guild, interaction.member,
-      sub === 'check' ? 'staff.stats' : 'config.set', client.config, interaction, errorMessage
-    );
-    if (denied) return;
-
-    // ── VIEW ─────────────────────────────────────────────────────────────────
-    if (sub === 'view') {
-      const defaultTarget = await slaSvc.getSLAMinutes(db, guildId, null);
-
-      // Try to find per-category configs
-      const categories = (await db.get(`guild_${guildId}.ticket.menu_option`)) || [];
-      const catLines   = await Promise.all(
-        categories.map(async c => {
-          const target = await slaSvc.getSLAMinutes(db, guildId, c.label || c.value);
-          return `> **${c.label || c.value}:** \`${fmtMinutes(target)}\``;
-        })
-      );
-
-      return interaction.reply({
-        embeds: [premiumEmbed(client, {
-          title: '⏱️  SLA Configuration',
-          description: [
-            `**Default Target:** \`${fmtMinutes(defaultTarget)}\``,
-            ``,
-            catLines.length ? `**Per-Category:**\n${catLines.join('\n')}` : '*No categories configured yet.*',
-            ``,
-            `> 🟡 Warning fires at **75%** of target`,
-            `> 🔴 Breach alert fires at **100%** of target`,
-          ].join('\n'),
-          color: client.colors?.warning || '#F59E0B',
-        }).setFooter({ text: 'Wave Network  •  SLA Monitor', iconURL: interaction.guild.iconURL({ dynamic: true }) })],
-        flags: 64,
-      });
-    }
-
-    // ── SET ──────────────────────────────────────────────────────────────────
     if (sub === 'set') {
-      const category = interaction.options.getString('category').trim();
-      const minutes  = interaction.options.getInteger('minutes');
-      if (minutes < 5 || minutes > 10080) return errorMessage(client, interaction, 'SLA target must be between 5 minutes and 7 days (10080 minutes).');
-      await slaSvc.setSLAMinutes(db, guildId, category, minutes);
-      await auditSvc.log(db, guildId, interaction.user.id, 'sla.set', { category, minutes });
+      const minutes = interaction.options.getInteger('minutes');
+      await db.set(`guild_${gid}.sla.target_minutes`, minutes);
+      client.cache?.invalidate?.(gid);
+
+      const hours = (minutes / 60).toFixed(1);
       return interaction.reply({
         embeds: [premiumEmbed(client, {
-          title: '✅  SLA Target Set',
-          description: `**${category === 'default' ? 'Default' : `Category: ${category}`}** SLA target set to **${fmtMinutes(minutes)}**.\n\nWarning fires at \`${fmtMinutes(Math.round(minutes * 0.75))}\`, breach at \`${fmtMinutes(minutes)}\`.`,
-          color: client.colors?.success || '#10B981',
-        }).setFooter({ text: 'Wave Network  •  SLA', iconURL: interaction.guild.iconURL({ dynamic: true }) })],
+          title:       '✅  SLA Configured',
+          description: `Target response time set to **${minutes} minutes** (${hours} hours).\n\nTickets exceeding this wait time will be flagged.`,
+          color:       '#10B981',
+        })],
         flags: 64,
       });
     }
 
-    // ── CHECK ────────────────────────────────────────────────────────────────
-    if (sub === 'check') {
-      await interaction.deferReply({ flags: 64 });
-      await slaSvc.runSLACheck(client, interaction.guild);
-      return interaction.editReply({
+    if (sub === 'view') {
+      const target = await db.get(`guild_${gid}.sla.target_minutes`);
+      if (!target) {
+        return interaction.reply({
+          embeds: [premiumEmbed(client, {
+            title:       '⏱️  SLA Configuration',
+            description: 'No SLA target is currently configured. Use `/sla set` to define one.',
+            color:       '#6B7280',
+          })],
+          flags: 64,
+        });
+      }
+
+      // Fetch limited analytics for context
+      const stats = await db.get(`guild_${gid}.analytics.response_times`) || [];
+      const avgMs = stats.length ? stats.reduce((a, b) => a + b, 0) / stats.length : null;
+      const avgStr = avgMs ? `${(avgMs / 60000).toFixed(1)} mins` : 'N/A';
+
+      const breached = (await db.get(`guild_${gid}.sla.breaches_total`)) || 0;
+
+      return interaction.reply({
         embeds: [premiumEmbed(client, {
-          title: '✅  SLA Check Complete',
-          description: 'SLA check ran successfully. If any tickets are near or past their SLA target, alerts have been posted to the mod log channel.',
-          color: '#10B981',
-        }).setFooter({ text: 'Wave Network  •  SLA', iconURL: interaction.guild.iconURL({ dynamic: true }) })],
+          title:       '⏱️  SLA Configuration',
+          description: `**Target:** ${target} minutes\n\n**Current Avg Response:** ${avgStr}\n**Total Breaches:** ${breached}`,
+          color:       '#7C3AED',
+        })],
+        flags: 64,
+      });
+    }
+
+    if (sub === 'reset') {
+      await db.delete(`guild_${gid}.sla.target_minutes`);
+      client.cache?.invalidate?.(gid);
+      return interaction.reply({
+        embeds: [premiumEmbed(client, {
+          title:       '✅  SLA Disabled',
+          description: 'SLA targeting has been removed.',
+          color:       '#10B981',
+        })],
+        flags: 64,
       });
     }
   },

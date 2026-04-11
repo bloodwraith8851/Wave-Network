@@ -1,145 +1,124 @@
-/**
- * branding.js — /branding command
- * Let each server customize embed colors, footer text, thumbnail globally.
- *
- * DB keys:
- *   guild_<id>.branding.color     → hex string
- *   guild_<id>.branding.footer    → string
- *   guild_<id>.branding.thumbnail → URL string
- *   guild_<id>.branding.author_icon → URL string
- */
 const {
   ApplicationCommandType,
   ApplicationCommandOptionType,
-  EmbedBuilder,
 } = require('discord.js');
 const { premiumEmbed, errorMessage } = require(`${process.cwd()}/functions/functions`);
-const permSvc  = require(`${process.cwd()}/services/permissionService`);
-const auditSvc = require(`${process.cwd()}/services/auditService`);
 
-const DEFAULT_COLOR     = '#7C3AED';
-const DEFAULT_FOOTER    = 'Wave Network  •  Ticket System';
-const COLOR_REGEX       = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
-const URL_REGEX         = /^https?:\/\/.+/;
+const VALID_COLORS = /^#[0-9A-Fa-f]{6}$/;
 
 module.exports = {
-  name: 'branding',
-  description: 'Customize embed appearance — colors, footer text, and thumbnails.',
-  category: 'Config ⚙️',
-  cooldown: 3,
+  name:            'branding',
+  description:     'Customize embed colors and footer text for this server.',
+  category:        'Config ⚙️',
+  cooldown:        5,
+  type:            ApplicationCommandType.ChatInput,
   userPermissions: ['ManageGuild'],
-  botPermissions: ['SendMessages', 'EmbedLinks'],
-  type: ApplicationCommandType.ChatInput,
+  botPermissions:  ['SendMessages', 'EmbedLinks'],
   options: [
     {
-      name: 'preview',
-      description: 'Preview how embeds will look with current branding.',
-      type: ApplicationCommandOptionType.Subcommand,
+      name:        'preview',
+      description: 'Preview how embeds look with current branding.',
+      type:        ApplicationCommandOptionType.Subcommand,
     },
     {
-      name: 'set',
-      description: 'Set a branding property.',
-      type: ApplicationCommandOptionType.Subcommand,
-      options: [
-        { name: 'property', description: 'Which property to set.', required: true, type: ApplicationCommandOptionType.String,
-          choices: [
-            { name: '🎨 Embed Color',   value: 'color' },
-            { name: '📝 Footer Text',   value: 'footer' },
-            { name: '🖼️ Thumbnail URL', value: 'thumbnail' },
-            { name: '👤 Author Icon URL', value: 'author_icon' },
-          ] },
-        { name: 'value', description: 'Value to set (#hex color, text, or image URL).', required: true, type: ApplicationCommandOptionType.String },
-      ],
+      name:        'set-color',
+      description: 'Set the primary embed color (hex code).',
+      type:        ApplicationCommandOptionType.Subcommand,
+      options: [{
+        name:        'color',
+        description: 'Hex color code (e.g. #7C3AED).',
+        type:        ApplicationCommandOptionType.String,
+        required:    true,
+      }],
     },
     {
-      name: 'reset',
-      description: 'Reset all branding to default.',
-      type: ApplicationCommandOptionType.Subcommand,
+      name:        'set-footer',
+      description: 'Set custom footer text on all embeds.',
+      type:        ApplicationCommandOptionType.Subcommand,
+      options: [{
+        name:        'text',
+        description: 'Text to show in the footer (max 100 characters).',
+        type:        ApplicationCommandOptionType.String,
+        required:    true,
+        max_length:  100,
+      }],
+    },
+    {
+      name:        'reset',
+      description: 'Reset all branding to Wave Network defaults.',
+      type:        ApplicationCommandOptionType.Subcommand,
     },
   ],
 
   run: async (client, interaction) => {
-    const db      = client.db;
-    const sub     = interaction.options.getSubcommand();
-    const guildId = interaction.guild.id;
+    const db  = client.db;
+    const gid = interaction.guild.id;
+    const sub = interaction.options.getSubcommand();
 
-    const denied = await permSvc.requirePermission(db, interaction.guild, interaction.member, 'branding.set', client.config, interaction, errorMessage);
-    if (denied) return;
-
-    const getBranding = async () => ({
-      color:       (await db.get(`guild_${guildId}.branding.color`))       || DEFAULT_COLOR,
-      footer:      (await db.get(`guild_${guildId}.branding.footer`))      || DEFAULT_FOOTER,
-      thumbnail:   (await db.get(`guild_${guildId}.branding.thumbnail`))   || null,
-      author_icon: (await db.get(`guild_${guildId}.branding.author_icon`)) || null,
-    });
-
-    // ── PREVIEW ──────────────────────────────────────────────────────────────
     if (sub === 'preview') {
-      const b = await getBranding();
-      const embed = new EmbedBuilder()
-        .setColor(b.color)
-        .setTitle('🎨  Branding Preview')
-        .setDescription(`This is a **live preview** of your current embed branding.\n\nAll bot embeds will adopt these settings.`)
-        .addFields([
-          { name: '🎨 Color',       value: `\`${b.color}\``, inline: true },
-          { name: '📝 Footer',      value: `\`${b.footer.slice(0, 50)}\``, inline: true },
-          { name: '🖼️ Thumbnail',   value: b.thumbnail ? `[Link](${b.thumbnail})` : '`Default`', inline: true },
-          { name: '👤 Author Icon', value: b.author_icon ? `[Link](${b.author_icon})` : '`Default`', inline: true },
-        ])
-        .setFooter({ text: b.footer, iconURL: b.author_icon || interaction.guild.iconURL({ dynamic: true }) })
-        .setTimestamp();
+      const color  = (await db.get(`guild_${gid}.branding.color`))  || '#7C3AED';
+      const footer = (await db.get(`guild_${gid}.branding.footer`)) || `Wave Network  •  ${interaction.guild.name}`;
 
-      if (b.thumbnail) embed.setThumbnail(b.thumbnail);
+      const preview = premiumEmbed(client, {
+        title:       '🎨  Branding Preview',
+        description: `This is how your embeds will look with your current branding settings.\n\n**Everything looks great!** Users will see this color and footer on all bot responses.`,
+        color,
+        fields: [
+          { name: '🎨 Embed Color',  value: `\`${color}\``,    inline: true },
+          { name: '📝 Footer Text',  value: `\`${footer}\``,   inline: true },
+        ],
+      }).setFooter({ text: footer, iconURL: interaction.guild.iconURL({ dynamic: true }) });
 
-      if (b.thumbnail) embed.setThumbnail(b.thumbnail);
-
-      return interaction.reply({ embeds: [embed], flags: 64 });
+      return interaction.reply({ embeds: [preview], flags: 64 });
     }
 
-    // ── SET ──────────────────────────────────────────────────────────────────
-    if (sub === 'set') {
-      const prop  = interaction.options.getString('property');
-      const value = interaction.options.getString('value').trim();
-
-      // Validate
-      if (prop === 'color' && !COLOR_REGEX.test(value)) {
-        return errorMessage(client, interaction, `Invalid hex color. Use format \`#RRGGBB\` (e.g. \`#7C3AED\`).`);
-      }
-      if ((prop === 'thumbnail' || prop === 'author_icon') && !URL_REGEX.test(value)) {
-        return errorMessage(client, interaction, `Invalid URL. Must start with \`http://\` or \`https://\`.`);
-      }
-      if (prop === 'footer' && value.length > 100) {
-        return errorMessage(client, interaction, 'Footer text must be 100 characters or less.');
+    if (sub === 'set-color') {
+      const color = interaction.options.getString('color').trim();
+      if (!VALID_COLORS.test(color)) {
+        return errorMessage(client, interaction, 'Invalid hex color. Use format `#RRGGBB` (e.g. `#7C3AED`).');
       }
 
-      const old = await db.get(`guild_${guildId}.branding.${prop}`);
-      await db.set(`guild_${guildId}.branding.${prop}`, value);
-      await auditSvc.log(db, guildId, interaction.user.id, `branding.set_${prop}`, { oldValue: old, newValue: value });
+      await db.set(`guild_${gid}.branding.color`, color);
+      client.cache?.invalidate?.(gid);
 
       return interaction.reply({
         embeds: [premiumEmbed(client, {
-          title: '✅  Branding Updated',
-          description: `**${prop}** has been updated to:\n\`\`\`${value}\`\`\`\nRun \`/branding preview\` to see how it looks.`,
-          color: prop === 'color' ? value : (client.colors?.success || '#10B981'),
-        }).setFooter({ text: `Wave Network  •  Branding`, iconURL: interaction.guild.iconURL({ dynamic: true }) })],
+          title:       '✅  Color Updated',
+          description: `Embed color set to \`${color}\`.`,
+          color,
+        })],
         flags: 64,
       });
     }
 
-    // ── RESET ────────────────────────────────────────────────────────────────
-    if (sub === 'reset') {
-      await db.delete(`guild_${guildId}.branding.color`);
-      await db.delete(`guild_${guildId}.branding.footer`);
-      await db.delete(`guild_${guildId}.branding.thumbnail`);
-      await db.delete(`guild_${guildId}.branding.author_icon`);
-      await auditSvc.log(db, guildId, interaction.user.id, 'branding.reset', {});
+    if (sub === 'set-footer') {
+      const text = interaction.options.getString('text').trim();
+      await db.set(`guild_${gid}.branding.footer`, text);
+      client.cache?.invalidate?.(gid);
 
       return interaction.reply({
         embeds: [premiumEmbed(client, {
-          title: '🔄  Branding Reset',
-          description: 'All branding settings have been reset to **default Wave Network** appearance.',
-          color: client.colors?.primary || DEFAULT_COLOR,
-        }).setFooter({ text: DEFAULT_FOOTER, iconURL: interaction.guild.iconURL({ dynamic: true }) })],
+          title:       '✅  Footer Updated',
+          description: `Footer text set to: \`${text}\``,
+          color:       '#10B981',
+        })],
+        flags: 64,
+      });
+    }
+
+    if (sub === 'reset') {
+      await Promise.all([
+        db.delete(`guild_${gid}.branding.color`),
+        db.delete(`guild_${gid}.branding.footer`),
+      ]);
+      client.cache?.invalidate?.(gid);
+
+      return interaction.reply({
+        embeds: [premiumEmbed(client, {
+          title:       '✅  Branding Reset',
+          description: 'All branding settings have been reset to Wave Network defaults.',
+          color:       '#10B981',
+        })],
         flags: 64,
       });
     }

@@ -167,8 +167,7 @@ module.exports = {
           new ActionRowBuilder().addComponents(
             new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setDisabled(true).setEmoji(client.emotes.home).setCustomId("home_page")
           )
-        ],
-        withResponse: true
+        ]
       });
           const collector = msg.createMessageComponentCollector({ time: time });
           
@@ -227,6 +226,40 @@ module.exports = {
                     embeds: [premiumEmbed(client, { title: `🛡️  Admin Role Setting`, description: `Select a role below to set as the **Admin Role**. This role will have full access to all tickets.`, color: '#3B82F6' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })],
                     components: [
                       new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder({ customId: 'admin_role', placeholder: 'Select Admin Role' })),
+                      new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page"))
+                    ]
+                  }).catch(() => null);
+                }
+              }
+              if (m.customId === "remove_mod_role") {
+                if (await db.has(`guild_${interaction.guild.id}.permissions.roles.moderator`)) {
+                  await db.delete(`guild_${interaction.guild.id}.permissions.roles.moderator`);
+                  m.update({
+                    embeds: [premiumEmbed(client, { title: `⚒️  Mod Role Disabled`, description: `The **Mod Role** has been successfully removed from the configuration.`, color: client.colors?.error || '#EF4444' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })],
+                    components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page"))]
+                  }).catch(() => null);
+                } else {
+                  m.update({
+                    embeds: [premiumEmbed(client, { title: `⚒️  Mod Role Setting`, description: `Select a role below to set as the **Mod Role (Level 2)**.`, color: '#3B82F6' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })],
+                    components: [
+                      new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder({ customId: 'mod_role', placeholder: 'Select Mod Role' })),
+                      new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page"))
+                    ]
+                  }).catch(() => null);
+                }
+              }
+              if (m.customId === "remove_staff_role") {
+                if (await db.has(`guild_${interaction.guild.id}.permissions.roles.staff`)) {
+                  await db.delete(`guild_${interaction.guild.id}.permissions.roles.staff`);
+                  m.update({
+                    embeds: [premiumEmbed(client, { title: `🛡️  Staff Role Disabled`, description: `The **Staff Role** has been successfully removed from the configuration.`, color: client.colors?.error || '#EF4444' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })],
+                    components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page"))]
+                  }).catch(() => null);
+                } else {
+                  m.update({
+                    embeds: [premiumEmbed(client, { title: `🛡️  Staff Role Setting`, description: `Select a role below to set as the **Staff Role (Level 1)**.`, color: '#10B981' }).setFooter({ text: `Setting • Requested By ${m.user.tag}`, iconURL: m.user.displayAvatarURL({ dynamic: true }) })],
+                    components: [
+                      new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder({ customId: 'staff_role', placeholder: 'Select Staff Role' })),
                       new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('◀ Back to Settings').setEmoji(client.emotes.home).setCustomId("home_page"))
                     ]
                   }).catch(() => null);

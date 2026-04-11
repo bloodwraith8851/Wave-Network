@@ -46,7 +46,7 @@ function premiumEmbed(client, { title, description, color, thumbnail, image, fie
 async function loadingState(interaction, text = 'Processing request...') {
   const embed = new EmbedBuilder()
     .setColor('#2B2D31')
-    .setDescription(`<a:loading:1234567890> ${text}`); // Note: Replace with actual emoji ID if possible
+    .setDescription(`⏳  ${text}`);
 
   const payload = { embeds: [embed], components: [], flags: 64 };
   

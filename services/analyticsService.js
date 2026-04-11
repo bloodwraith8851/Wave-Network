@@ -1,7 +1,8 @@
 /**
  * analyticsService.js — Ticket analytics tracking & reporting
+ * Audited: null guards, Logger integration, healthCheck for ServiceContainer.
  */
-
+const Logger = require('../utils/logger');
 /**
  * Track a single analytics event.
  * @param {object} db
@@ -10,6 +11,8 @@
  * @param {object} data
  */
 async function trackEvent(db, guildId, event, data) {
+  // Guard: never write to guild_undefined or guild_DM
+  if (!guildId || typeof guildId !== 'string' || guildId === 'DM' || guildId === 'undefined') return;
   try {
     const key = `guild_${guildId}.analytics`;
 
@@ -39,14 +42,14 @@ async function trackEvent(db, guildId, event, data) {
       }
     }
 
-    // Store raw event log (trimmed to last 500)
+    // Store raw event log (trimmed to last 200)
     const events = (await db.get(`${key}.events`)) || [];
-    events.push({ event, ...data });
-    if (events.length > 500) events.shift();
+    events.push({ event, ts: Date.now(), ...data });
+    if (events.length > 200) events.shift();
     await db.set(`${key}.events`, events);
 
   } catch (e) {
-    console.error('[Analytics] trackEvent error:', e.message);
+    Logger.error('analyticsService', `trackEvent error: ${e.message}`);
   }
 }
 
@@ -55,6 +58,10 @@ async function trackEvent(db, guildId, event, data) {
  * @returns {object}
  */
 async function getStats(db, guild) {
+  // Guard: never query without a real guild object
+  if (!guild?.id || typeof guild.id !== 'string') {
+    return { totalCreated: 0, totalClosed: 0, openTickets: 0, avgResponse: null, catBreakdown: {}, staffLeaderboard: [] };
+  }
   try {
     const key = `guild_${guild.id}.analytics`;
 
@@ -101,7 +108,7 @@ async function getStats(db, guild) {
       staffLeaderboard
     };
   } catch (e) {
-    console.error('[Analytics] getStats error:', e.message);
+    Logger.error('analyticsService', `getStats error: ${e.message}`);
     return { totalCreated: 0, totalClosed: 0, openTickets: 0, avgResponse: null, catBreakdown: {}, staffLeaderboard: [] };
   }
 }
@@ -119,4 +126,7 @@ function formatDuration(ms) {
   return `${h}h ${m % 60}m`;
 }
 
-module.exports = { trackEvent, getStats, formatDuration };
+/** ServiceContainer health check */
+async function healthCheck() { /* stateless — always healthy */ }
+
+module.exports = { trackEvent, getStats, formatDuration, healthCheck };

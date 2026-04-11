@@ -1,293 +1,229 @@
-/**
- * permissions.js — /permissions command
- * Manage the 5-tier permission system per guild.
- *
- * Subcommands:
- *   /permissions view
- *   /permissions set-role <level> <role>
- *   /permissions remove-role <level>
- *   /permissions set-feature <feature> <level>
- *   /permissions reset-feature <feature>
- */
 const {
   ApplicationCommandType,
   ApplicationCommandOptionType,
-  EmbedBuilder,
   ActionRowBuilder,
+  StringSelectMenuBuilder,
   ButtonBuilder,
   ButtonStyle,
+  EmbedBuilder,
 } = require('discord.js');
 const { premiumEmbed, errorMessage } = require(`${process.cwd()}/functions/functions`);
-const permSvc = require(`${process.cwd()}/services/permissionService`);
-const auditSvc = require(`${process.cwd()}/services/auditService`);
+const permissionService = require(`${process.cwd()}/services/permissionService`);
 
-const LEVELS = { owner: 4, admin: 3, moderator: 2, mod: 2, staff: 1, member: 0 };
+const LEVELS = [
+  { name: '0 — Member (Everyone)',   value: '0' },
+  { name: '1 — Staff',              value: '1' },
+  { name: '2 — Moderator',          value: '2' },
+  { name: '3 — Admin',              value: '3' },
+  { name: '4 — Owner (Bot owners)', value: '4' },
+];
 
 module.exports = {
-  name: 'permissions',
-  description: 'Manage the 5-tier permission system for this server.',
-  category: 'Config ⚙️',
-  cooldown: 3,
+  name:            'permissions',
+  description:     'Manage the 5-tier permission system for this server.',
+  category:        'Config ⚙️',
+  cooldown:        5,
+  type:            ApplicationCommandType.ChatInput,
   userPermissions: ['ManageGuild'],
-  botPermissions: ['SendMessages', 'EmbedLinks'],
-  type: ApplicationCommandType.ChatInput,
+  botPermissions:  ['SendMessages', 'EmbedLinks'],
   options: [
-    // ── /permissions view ──────────────────────────────────────────────────
     {
-      name: 'view',
-      description: 'View current role assignments and feature permission overrides.',
-      type: ApplicationCommandOptionType.Subcommand,
+      name:        'view',
+      description: 'View the current permission configuration.',
+      type:        ApplicationCommandOptionType.Subcommand,
     },
-    // ── /permissions set-role ──────────────────────────────────────────────
     {
-      name: 'set-role',
-      description: 'Assign a Discord role to a permission level (admin / moderator / staff).',
-      type: ApplicationCommandOptionType.Subcommand,
+      name:        'set-role',
+      description: 'Assign a role to a permission level.',
+      type:        ApplicationCommandOptionType.Subcommand,
       options: [
         {
-          name: 'level',
-          description: 'Permission level to assign the role to.',
-          type: ApplicationCommandOptionType.String,
-          required: true,
+          name:        'level',
+          description: 'Permission level to assign.',
+          type:        ApplicationCommandOptionType.String,
+          required:    true,
           choices: [
-            { name: '👑 Admin (Level 3)',     value: 'admin' },
-            { name: '⚒️ Moderator (Level 2)',  value: 'moderator' },
-            { name: '🛡️ Staff (Level 1)',      value: 'staff' },
+            { name: 'Staff (Level 1)',     value: 'staff' },
+            { name: 'Moderator (Level 2)', value: 'moderator' },
+            { name: 'Admin (Level 3)',     value: 'admin' },
           ],
         },
         {
-          name: 'role',
-          description: 'The Discord role to assign.',
-          type: ApplicationCommandOptionType.Role,
-          required: true,
+          name:        'role',
+          description: 'Role to assign to this level.',
+          type:        ApplicationCommandOptionType.Role,
+          required:    true,
         },
       ],
     },
-    // ── /permissions remove-role ───────────────────────────────────────────
     {
-      name: 'remove-role',
-      description: 'Remove the role assignment from a permission level.',
-      type: ApplicationCommandOptionType.Subcommand,
+      name:        'remove-role',
+      description: 'Remove the role assignment for a permission level.',
+      type:        ApplicationCommandOptionType.Subcommand,
       options: [
         {
-          name: 'level',
-          description: 'Permission level to clear.',
-          type: ApplicationCommandOptionType.String,
-          required: true,
+          name:        'level',
+          description: 'Level to remove.',
+          type:        ApplicationCommandOptionType.String,
+          required:    true,
           choices: [
-            { name: '👑 Admin (Level 3)',     value: 'admin' },
-            { name: '⚒️ Moderator (Level 2)',  value: 'moderator' },
-            { name: '🛡️ Staff (Level 1)',      value: 'staff' },
+            { name: 'Staff',     value: 'staff' },
+            { name: 'Moderator', value: 'moderator' },
+            { name: 'Admin',     value: 'admin' },
           ],
         },
       ],
     },
-    // ── /permissions set-feature ───────────────────────────────────────────
     {
-      name: 'set-feature',
-      description: 'Override the minimum permission level required for a specific feature.',
-      type: ApplicationCommandOptionType.Subcommand,
+      name:        'set-feature',
+      description: 'Set the minimum permission level required for a specific feature.',
+      type:        ApplicationCommandOptionType.Subcommand,
       options: [
         {
-          name: 'feature',
-          description: 'Feature to configure (e.g. ticket.close, config.set).',
-          type: ApplicationCommandOptionType.String,
-          required: true,
+          name:        'feature',
+          description: 'Feature to configure (e.g. ticket.close, ticket.claim)',
+          type:        ApplicationCommandOptionType.String,
+          required:    true,
         },
         {
-          name: 'level',
-          description: 'Minimum permission level required (0=Member … 3=Admin).',
-          type: ApplicationCommandOptionType.Integer,
-          required: true,
-          choices: [
-            { name: '0 — Member (everyone)',   value: 0 },
-            { name: '1 — Staff',               value: 1 },
-            { name: '2 — Moderator',           value: 2 },
-            { name: '3 — Admin',               value: 3 },
-          ],
+          name:        'level',
+          description: 'Minimum level required.',
+          type:        ApplicationCommandOptionType.String,
+          required:    true,
+          choices: LEVELS,
         },
       ],
     },
-    // ── /permissions reset-feature ─────────────────────────────────────────
     {
-      name: 'reset-feature',
-      description: 'Reset a feature permission override back to its default.',
-      type: ApplicationCommandOptionType.Subcommand,
+      name:        'reset-feature',
+      description: 'Reset a specific feature to its default permission level.',
+      type:        ApplicationCommandOptionType.Subcommand,
       options: [
         {
-          name: 'feature',
+          name:        'feature',
           description: 'Feature to reset.',
-          type: ApplicationCommandOptionType.String,
-          required: true,
+          type:        ApplicationCommandOptionType.String,
+          required:    true,
         },
       ],
     },
   ],
 
   run: async (client, interaction) => {
-    const db  = client.db;
-    const sub = interaction.options.getSubcommand();
-    const guildId = interaction.guild.id;
+    const db    = client.db;
+    const guild = interaction.guild;
+    const sub   = interaction.options.getSubcommand();
+    const gid   = guild.id;
 
-    // Only admins/owners can manage permissions
-    const memberLevel = await permSvc.getMemberLevel(db, interaction.guild, interaction.member, client.config);
-    if (memberLevel < 3) {
-      return errorMessage(client, interaction, '🔒 **Permission Denied** — You need **Admin** level (Level 3+) to manage permissions.');
+    if (sub === 'view') {
+      const [adminRole, modRole, staffRole] = await Promise.all([
+        db.get(`guild_${gid}.ticket.admin_role`),
+        db.get(`guild_${gid}.permissions.roles.moderator`),
+        db.get(`guild_${gid}.permissions.roles.staff`),
+      ]);
+
+      const roleStr = (id) => id ? `<@&${id}>` : '`Not Set`';
+
+      const embed = premiumEmbed(client, {
+        title:       '🔐  Permission Configuration',
+        description: 'Current 5-tier permission role assignments for this server.',
+        color:       '#7C3AED',
+        fields: [
+          { name: '👑 Level 4 — Owner',     value: `Bot owners in config`,           inline: false },
+          { name: '🛡️ Level 3 — Admin',     value: roleStr(adminRole),               inline: true },
+          { name: '⚒️ Level 2 — Moderator', value: roleStr(modRole),                 inline: true },
+          { name: '🔧 Level 1 — Staff',     value: roleStr(staffRole),               inline: true },
+          { name: '👤 Level 0 — Member',    value: 'Everyone (default)',             inline: true },
+        ],
+      });
+
+      return interaction.reply({ embeds: [embed], flags: 64 });
     }
 
-    // ── VIEW ───────────────────────────────────────────────────────────────
-    if (sub === 'view') {
-      const roles     = await permSvc.getRoleAssignments(db, guildId);
-      const overrides = await permSvc.getFeatureOverrides(db, guildId);
+    if (sub === 'set-role') {
+      const level  = interaction.options.getString('level');
+      const role   = interaction.options.getRole('role');
 
-      const roleLine = (level, roleId) => {
-        const role = roleId ? interaction.guild.roles.cache.get(roleId) : null;
-        return role ? `${role}  \`${role.name}\`` : '`Not set`';
+      const keyMap = {
+        admin:     `guild_${gid}.ticket.admin_role`,
+        moderator: `guild_${gid}.permissions.roles.moderator`,
+        staff:     `guild_${gid}.permissions.roles.staff`,
       };
 
-      const overrideLines = Object.entries(overrides).length
-        ? Object.entries(overrides).map(([f, l]) =>
-            `\`${f}\` → **${permSvc.LEVEL_EMOJIS[l]} ${permSvc.LEVEL_NAMES[l]}**`
-          ).join('\n')
-        : '*No feature overrides set — using defaults.*';
+      await db.set(keyMap[level], role.id);
+      client.cache?.invalidate?.(gid);
 
-      const embed = premiumEmbed(client, {
-        title: '🔐  Permission System Overview',
-        color: '#8B5CF6',
-      })
-        .setDescription([
-          `**Tier Levels:**`,
-          `> 🌟 **Owner** (4) — Bot owner IDs + Guild owner`,
-          `> 👑 **Admin** (3) — Configured role or \`ManageGuild\``,
-          `> ⚒️ **Moderator** (2) — Configured role or \`ManageMessages\``,
-          `> 🛡️ **Staff** (1) — Configured role or \`ManageChannels\``,
-          `> 👤 **Member** (0) — Everyone else`,
-        ].join('\n'))
-        .addFields([
-          {
-            name: '🎭  Role Assignments',
-            value: [
-              `> 👑 **Admin:** ${roleLine(3, roles.admin)}`,
-              `> ⚒️ **Moderator:** ${roleLine(2, roles.moderator)}`,
-              `> 🛡️ **Staff:** ${roleLine(1, roles.staff)}`,
-            ].join('\n'),
-            inline: false,
-          },
-          {
-            name: `📋  Feature Overrides (${Object.keys(overrides).length})`,
-            value: overrideLines.slice(0, 1000),
-            inline: false,
-          },
-        ])
-        .setFooter({
-          text: `${interaction.guild.name}  •  Use /permissions set-role to assign roles`,
-          iconURL: interaction.guild.iconURL({ dynamic: true }),
-        })
-        .setTimestamp();
-
-      return interaction.reply({ embeds: [embed], flags: 64 });
-    }
-
-    // ── SET-ROLE ───────────────────────────────────────────────────────────
-    if (sub === 'set-role') {
-      const level = interaction.options.getString('level'); // admin|moderator|staff
-      const role  = interaction.options.getRole('role');
-
-      const oldId = await db.get(`guild_${guildId}.permissions.roles.${level}`);
-      await db.set(`guild_${guildId}.permissions.roles.${level}`, role.id);
-
-      // Also sync to legacy admin_role key for backward compat
-      if (level === 'admin') {
-        await db.set(`guild_${guildId}.ticket.admin_role`, role.id);
-      }
-
-      await auditSvc.log(db, guildId, interaction.user.id, 'permissions.set_role', {
-        level,
-        oldRoleId: oldId,
-        newRoleId: role.id,
+      return interaction.reply({
+        embeds: [premiumEmbed(client, {
+          title:       '✅  Permission Role Updated',
+          description: `**${level.charAt(0).toUpperCase() + level.slice(1)}** role set to ${role}.`,
+          color:       '#10B981',
+        })],
+        flags: 64,
       });
-
-      const embed = premiumEmbed(client, {
-        title: `✅  Permission Role Updated`,
-        description: `**${permSvc.LEVEL_EMOJIS[LEVELS[level]]} ${level.charAt(0).toUpperCase() + level.slice(1)}** level is now assigned to ${role}.\n\nMembers with this role will have **Level ${LEVELS[level]}** permissions.`,
-        color: client.colors?.success || '#10B981',
-      }).setFooter({ text: `Wave Network  •  Permission System`, iconURL: interaction.guild.iconURL({ dynamic: true }) });
-
-      return interaction.reply({ embeds: [embed], flags: 64 });
     }
 
-    // ── REMOVE-ROLE ────────────────────────────────────────────────────────
     if (sub === 'remove-role') {
-      const level = interaction.options.getString('level');
-      const oldId = await db.get(`guild_${guildId}.permissions.roles.${level}`);
-      await db.delete(`guild_${guildId}.permissions.roles.${level}`);
+      const level  = interaction.options.getString('level');
+      const keyMap = {
+        admin:     `guild_${gid}.ticket.admin_role`,
+        moderator: `guild_${gid}.permissions.roles.moderator`,
+        staff:     `guild_${gid}.permissions.roles.staff`,
+      };
 
-      await auditSvc.log(db, guildId, interaction.user.id, 'permissions.remove_role', {
-        level, removedRoleId: oldId,
+      await db.delete(keyMap[level]);
+      client.cache?.invalidate?.(gid);
+
+      return interaction.reply({
+        embeds: [premiumEmbed(client, {
+          title:       '✅  Role Removed',
+          description: `The **${level}** role assignment has been removed.`,
+          color:       '#10B981',
+        })],
+        flags: 64,
       });
-
-      const embed = premiumEmbed(client, {
-        title: `🗑️  Permission Role Removed`,
-        description: `Role assignment for **${level}** has been cleared.\n\nFallback: Discord's built-in permissions will now be used for this level.`,
-        color: client.colors?.error || '#EF4444',
-      }).setFooter({ text: `Wave Network  •  Permission System`, iconURL: interaction.guild.iconURL({ dynamic: true }) });
-
-      return interaction.reply({ embeds: [embed], flags: 64 });
     }
 
-    // ── SET-FEATURE ────────────────────────────────────────────────────────
     if (sub === 'set-feature') {
-      const feature = interaction.options.getString('feature').toLowerCase().trim();
-      const level   = interaction.options.getInteger('level');
+      const feature = interaction.options.getString('feature');
+      const level   = parseInt(interaction.options.getString('level'));
 
-      // Validate feature exists
-      if (!(feature in permSvc.FEATURE_DEFAULTS)) {
-        const available = Object.keys(permSvc.FEATURE_DEFAULTS).join(', ');
-        return errorMessage(client, interaction,
-          `❌ Unknown feature \`${feature}\`.\n\nAvailable: \`\`\`${available.slice(0, 800)}\`\`\``
-        );
+      // Sanitize feature key (prevent injection)
+      if (!/^[a-z._-]{2,50}$/i.test(feature)) {
+        return errorMessage(client, interaction, 'Invalid feature key format. Use alphanumerics, dots, and hyphens only.');
       }
 
-      const defaultLevel = permSvc.FEATURE_DEFAULTS[feature];
-      await db.set(`guild_${guildId}.permissions.features.${feature}`, level);
+      await db.set(`guild_${gid}.permissions.features.${feature.replace(/\./g, '_')}`, level);
+      client.cache?.invalidate?.(gid);
 
-      await auditSvc.log(db, guildId, interaction.user.id, 'permissions.set_feature', {
-        feature,
-        oldLevel: defaultLevel,
-        newLevel: level,
+      const levelNames = ['Member', 'Staff', 'Moderator', 'Admin', 'Owner'];
+      return interaction.reply({
+        embeds: [premiumEmbed(client, {
+          title:       '✅  Feature Permission Set',
+          description: `Feature \`${feature}\` now requires **${levelNames[level]} (Level ${level})**  or higher.`,
+          color:       '#10B981',
+        })],
+        flags: 64,
       });
-
-      const embed = premiumEmbed(client, {
-        title: `✅  Feature Permission Updated`,
-        description: [
-          `**Feature:** \`${feature}\``,
-          `**Required level:** ${permSvc.LEVEL_EMOJIS[level]} **${permSvc.LEVEL_NAMES[level]}** (Level ${level})`,
-          `**Default was:** ${permSvc.LEVEL_EMOJIS[defaultLevel]} ${permSvc.LEVEL_NAMES[defaultLevel]} (Level ${defaultLevel})`,
-        ].join('\n'),
-        color: client.colors?.info || '#3B82F6',
-      }).setFooter({ text: `Wave Network  •  Permission System`, iconURL: interaction.guild.iconURL({ dynamic: true }) });
-
-      return interaction.reply({ embeds: [embed], flags: 64 });
     }
 
-    // ── RESET-FEATURE ──────────────────────────────────────────────────────
     if (sub === 'reset-feature') {
-      const feature = interaction.options.getString('feature').toLowerCase().trim();
-      await db.delete(`guild_${guildId}.permissions.features.${feature}`);
+      const feature = interaction.options.getString('feature');
+      if (!/^[a-z._-]{2,50}$/i.test(feature)) {
+        return errorMessage(client, interaction, 'Invalid feature key format.');
+      }
 
-      const defaultLevel = permSvc.FEATURE_DEFAULTS[feature] ?? 1;
+      await db.delete(`guild_${gid}.permissions.features.${feature.replace(/\./g, '_')}`);
+      client.cache?.invalidate?.(gid);
 
-      await auditSvc.log(db, guildId, interaction.user.id, 'permissions.reset_feature', {
-        feature, restoredLevel: defaultLevel,
+      return interaction.reply({
+        embeds: [premiumEmbed(client, {
+          title:       '✅  Feature Reset',
+          description: `Feature \`${feature}\` has been reset to its default permission level.`,
+          color:       '#10B981',
+        })],
+        flags: 64,
       });
-
-      const embed = premiumEmbed(client, {
-        title: `🔄  Feature Permission Reset`,
-        description: `Feature \`${feature}\` has been reset to its default level:\n${permSvc.LEVEL_EMOJIS[defaultLevel]} **${permSvc.LEVEL_NAMES[defaultLevel]}** (Level ${defaultLevel})`,
-        color: client.colors?.primary || '#8B5CF6',
-      }).setFooter({ text: `Wave Network  •  Permission System`, iconURL: interaction.guild.iconURL({ dynamic: true }) });
-
-      return interaction.reply({ embeds: [embed], flags: 64 });
     }
   },
 };

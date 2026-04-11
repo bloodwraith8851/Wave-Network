@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  bot:
+    build: ..
+    image: wave-network-bot:v4
+    env_file: ../.env
+    environment:
+      - NODE_ENV=production
+      - SHARDING_ENABLED=true
+      - SHARD_COUNT=auto
+      - PORT=8989
+    volumes:
+      - ../database.json:/app/database.json
+      - ../logs:/app/logs
+    restart: unless-stopped
+    ports:
+      - "8989:8989"
+
+  dashboard:
+    build: ../dashboard
+    image: wave-network-dashboard:v4
+    env_file: ../.env
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - bot
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - bot
+      - dashboard
+    restart: always

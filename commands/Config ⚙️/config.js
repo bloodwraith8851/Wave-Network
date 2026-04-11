@@ -1,130 +1,155 @@
-/**
- * config.js — /config view | reset | set <key> <value>
- * View and manage all server configuration in one place.
- */
-const { ApplicationCommandType, ApplicationCommandOptionType } = require('discord.js');
+const {
+  ApplicationCommandType,
+  ApplicationCommandOptionType,
+  AttachmentBuilder,
+} = require('discord.js');
 const { premiumEmbed, errorMessage } = require(`${process.cwd()}/functions/functions`);
 
 module.exports = {
-  name: 'config',
-  description: 'View or reset all bot settings for this server.',
-  category: 'Config ⚙️',
-  cooldown: 5,
-  type: ApplicationCommandType.ChatInput,
+  name:            'config',
+  description:     'View or export this server\'s bot configuration.',
+  category:        'Config ⚙️',
+  cooldown:        10,
+  type:            ApplicationCommandType.ChatInput,
   userPermissions: ['ManageGuild'],
-  botPermissions: ['SendMessages', 'EmbedLinks'],
+  botPermissions:  ['SendMessages', 'EmbedLinks'],
   options: [
     {
-      name: 'view',
-      description: 'View all current settings.',
-      type: ApplicationCommandOptionType.Subcommand
+      name:        'overview',
+      description: 'View all current bot settings in an embed.',
+      type:        ApplicationCommandOptionType.Subcommand,
     },
     {
-      name: 'reset',
-      description: '⚠️ Reset ALL bot settings to default for this server.',
-      type: ApplicationCommandOptionType.Subcommand
+      name:        'export',
+      description: 'Export all settings as a JSON file (sent to your DMs).',
+      type:        ApplicationCommandOptionType.Subcommand,
     },
-    {
-      name: 'set',
-      description: 'Set a specific bot config value.',
-      type: ApplicationCommandOptionType.Subcommand,
-      options: [
-        {
-          name: 'key',
-          description: 'Config key to set.',
-          type: ApplicationCommandOptionType.String,
-          required: true,
-          choices: [
-            { name: 'Suggestion Channel', value: 'suggest_channel' },
-            { name: 'Auto-Close Hours (0=off)', value: 'auto_close_hours' },
-            { name: 'Reminder Minutes (0=off)', value: 'reminder_minutes' },
-            { name: 'Reopen Limit (0=unlimited)', value: 'reopen_limit' }
-          ]
-        },
-        { name: 'value', description: 'Value to set (channel mention or number).', type: ApplicationCommandOptionType.String, required: true }
-      ]
-    }
   ],
 
   run: async (client, interaction) => {
     const db  = client.db;
-    const sub = interaction.options.getSubcommand();
     const gid = interaction.guild.id;
+    const sub = interaction.options.getSubcommand();
 
-    if (sub === 'view') {
-      const adminRole       = await db.get(`guild_${gid}.ticket.admin_role`);
-      const category        = await db.get(`guild_${gid}.ticket.category`);
-      const modlog          = await db.get(`guild_${gid}.modlog`);
-      const transcriptCh    = await db.get(`guild_${gid}.ticket.settings.transcript_channel`);
-      const maxTickets      = await db.get(`guild_${gid}.ticket.settings.max_tickets`) || 1;
-      const cooldown        = await db.get(`guild_${gid}.ticket.settings.cooldown_seconds`) || 300;
-      const autoCloseHours  = await db.get(`guild_${gid}.ticket.settings.auto_close_hours`) ?? 24;
-      const remindMin       = await db.get(`guild_${gid}.ticket.settings.reminder_minutes`) ?? 30;
-      const suggestCh       = await db.get(`guild_${gid}.suggest_channel`);
-      const reopenLimit     = await db.get(`guild_${gid}.ticket.settings.reopen_limit`) || 0;
-      const blacklist       = (await db.get(`guild_${gid}.blacklist`) || []).length;
+    if (sub === 'overview') {
+      await interaction.deferReply({ flags: 64 });
 
-      const ch = (id) => id ? `<#${id}>` : '`Not set`';
-      const role = (id) => id ? `<@&${id}>` : '`Not set`';
+      // Fetch all settings in one batch
+      const [
+        adminRole, modRole, staffRole,
+        ticketCat, modlog, transcriptCh,
+        ratingEnabled, autoClose, autoAssignMode,
+        language, embedColor, maxTickets, cooldownSec,
+        verifyMode,
+      ] = await Promise.all([
+        db.get(`guild_${gid}.ticket.admin_role`),
+        db.get(`guild_${gid}.permissions.roles.moderator`),
+        db.get(`guild_${gid}.permissions.roles.staff`),
+        db.get(`guild_${gid}.ticket.category`),
+        db.get(`guild_${gid}.modlog`),
+        db.get(`guild_${gid}.ticket.transcript_channel`),
+        db.get(`guild_${gid}.ticket.settings.ratings_enabled`),
+        db.get(`guild_${gid}.ticket.settings.auto_close_hours`),
+        db.get(`guild_${gid}.autoAssign.mode`),
+        db.get(`guild_${gid}.language`),
+        db.get(`guild_${gid}.branding.color`),
+        db.get(`guild_${gid}.ticket.settings.max_tickets`),
+        db.get(`guild_${gid}.ticket.settings.cooldown_seconds`),
+        db.get(`guild_${gid}.verification.mode`),
+      ]);
 
-      const embed = premiumEmbed(client, {
-        title: `⚙️  Server Config — ${interaction.guild.name}`,
-        description: 'Current bot configuration for this server.',
-        color: '#7C3AED'
-      })
-        .setThumbnail(interaction.guild.iconURL({ dynamic: true }))
-        .addFields([
-          { name: '🎫  Ticket System', value: [`> **Admin Role:** ${role(adminRole)}`, `> **Ticket Category:** ${category ? `<#${category}>` : '`Not set`'}`, `> **Mod Log:** ${ch(modlog)}`, `> **Transcript Channel:** ${ch(transcriptCh)}`, `> **Max Open Tickets:** \`${maxTickets}\``, `> **Cooldown:** \`${cooldown}s\``].join('\n'), inline: false },
-          { name: '🤖  Automation', value: [`> **Auto-Close:** \`${autoCloseHours ? `${autoCloseHours}h` : 'Disabled'}\``, `> **Reminder:** \`${remindMin ? `${remindMin}m` : 'Disabled'}\``, `> **Reopen Limit:** \`${reopenLimit || 'Unlimited'}\``].join('\n'), inline: true },
-          { name: '🌐  Community', value: [`> **Suggest Channel:** ${ch(suggestCh)}`, `> **Blacklisted Words:** \`${blacklist}\``].join('\n'), inline: true }
-        ])
-        .setFooter({ text: `Use /settings to change ticket settings  •  Wave Network`, iconURL: interaction.guild.iconURL({ dynamic: true }) });
+      const fmt = (val, fallback = '`Not Set`') =>
+        val !== null && val !== undefined ? (typeof val === 'string' && /^\d{17,19}$/.test(val) ? `<#${val}>` : `\`${val}\``) : fallback;
 
-      return interaction.reply({ embeds: [embed], ephemeral: true });
-    }
-
-    if (sub === 'reset') {
-      // List all guild keys and delete them
-      const keys = [
-        `guild_${gid}.ticket.admin_role`, `guild_${gid}.ticket.category`, `guild_${gid}.modlog`,
-        `guild_${gid}.ticket.settings`, `guild_${gid}.suggest_channel`,
-        `guild_${gid}.blacklist`, `guild_${gid}.panels`
-      ];
-      for (const k of keys) await db.delete(k).catch(() => null);
+      const fmtRole = (id) => id ? `<@&${id}>` : '`Not Set`';
+      const fmtBool = (val, def) => val === null || val === undefined ? `\`${def}\`` : (val ? '`✅ Enabled`' : '`❌ Disabled`');
 
       const embed = premiumEmbed(client, {
-        title: '⚠️  Config Reset',
-        description: 'All server settings have been **reset to default**.\nPlease run `/settings` to reconfigure the bot.',
-        color: '#EF4444'
-      }).setFooter({ text: `Wave Network  •  Config Reset`, iconURL: interaction.guild.iconURL({ dynamic: true }) });
+        title:       '⚙️  Server Configuration',
+        description: `Configuration overview for **${interaction.guild.name}**`,
+        color:       embedColor || '#7C3AED',
+        fields: [
+          // Roles
+          { name: '━━━ 🔐 Permissions ━━━', value: '\u200b',            inline: false },
+          { name: '🛡️ Admin Role',          value: fmtRole(adminRole),  inline: true },
+          { name: '⚒️ Mod Role',            value: fmtRole(modRole),    inline: true },
+          { name: '🔧 Staff Role',          value: fmtRole(staffRole),  inline: true },
+          // Channels
+          { name: '━━━ 📢 Channels ━━━',   value: '\u200b',            inline: false },
+          { name: '📂 Ticket Category',     value: ticketCat ? `<#${ticketCat}>` : '`Not Set`', inline: true },
+          { name: '📜 Mod Log',             value: modlog    ? `<#${modlog}>`    : '`Not Set`', inline: true },
+          { name: '📄 Transcript Channel',  value: transcriptCh ? `<#${transcriptCh}>` : '`Not Set`', inline: true },
+          // Ticket Settings
+          { name: '━━━ 🎫 Ticket Settings ━━━', value: '\u200b',       inline: false },
+          { name: '⭐ Ratings',             value: fmtBool(ratingEnabled, 'Enabled'),     inline: true },
+          { name: '🔄 Auto-Close (hours)',  value: fmt(autoClose, '`24h`'),                inline: true },
+          { name: '📌 Max Tickets/User',    value: fmt(maxTickets, '`1`'),                 inline: true },
+          { name: '⏱️ Cooldown (seconds)',  value: fmt(cooldownSec, '`0`'),                inline: true },
+          // System
+          { name: '━━━ ⚙️ System ━━━',     value: '\u200b',            inline: false },
+          { name: '🌐 Auto-Assign Mode',   value: fmt(autoAssignMode, '`Off`'),           inline: true },
+          { name: '🗣️ Language',            value: fmt(language, '`en`'),                  inline: true },
+          { name: '🔒 Verification Mode',  value: fmt(verifyMode, '`none`'),              inline: true },
+          { name: '🎨 Embed Color',          value: fmt(embedColor, '`Default`'),           inline: true },
+        ],
+      });
 
-      return interaction.reply({ embeds: [embed], ephemeral: true });
+      return interaction.editReply({ embeds: [embed] });
     }
 
-    if (sub === 'set') {
-      const key   = interaction.options.getString('key');
-      const value = interaction.options.getString('value');
+    if (sub === 'export') {
+      await interaction.deferReply({ flags: 64 });
 
-      if (key === 'suggest_channel') {
-        const chId = value.replace(/[<#>]/g, '');
-        const ch   = interaction.guild.channels.cache.get(chId);
-        if (!ch) return errorMessage(client, interaction, 'Invalid channel. Mention a valid channel.');
-        await db.set(`guild_${gid}.suggest_channel`, chId);
-        return interaction.reply({ embeds: [premiumEmbed(client, { title: '✅  Config Updated', description: `Suggestion channel set to ${ch}.`, color: '#10B981' })], flags: 64 });
+      // Get all guild data
+      let rawData;
+      try {
+        rawData = await db.get(`guild_${gid}`);
+      } catch {
+        return interaction.editReply({
+          embeds: [premiumEmbed(client, { title: '⛔  Export Failed', description: 'Could not read guild data.', color: '#EF4444' })],
+        });
       }
 
-      const numMap = {
-        auto_close_hours: `guild_${gid}.ticket.settings.auto_close_hours`,
-        reminder_minutes: `guild_${gid}.ticket.settings.reminder_minutes`,
-        reopen_limit:     `guild_${gid}.ticket.settings.reopen_limit`
+      if (!rawData) rawData = {};
+
+      // Scrub sensitive-looking keys (IDs are fine, but no tokens/secrets)
+      const exportData = {
+        exported_at:  new Date().toISOString(),
+        guild_id:     gid,
+        guild_name:   interaction.guild.name,
+        bot_version:  require(`${process.cwd()}/package.json`).version,
+        config:       rawData,
       };
 
-      if (numMap[key]) {
-        const num = parseInt(value);
-        if (isNaN(num) || num < 0) return errorMessage(client, interaction, 'Value must be a non-negative number.');
-        await db.set(numMap[key], num);
-        return interaction.reply({ embeds: [premiumEmbed(client, { title: '✅  Config Updated', description: `**${key}** set to \`${num}\`.`, color: '#10B981' })], flags: 64 });
+      const json       = JSON.stringify(exportData, null, 2);
+      const buffer     = Buffer.from(json, 'utf-8');
+      const attachment = new AttachmentBuilder(buffer, {
+        name:        `wave-config-${gid}-${Date.now()}.json`,
+        description: `Wave Network config export for ${interaction.guild.name}`,
+      });
+
+      // DM the file to the requester
+      try {
+        await interaction.user.send({
+          content: `📥  Here is your Wave Network config export for **${interaction.guild.name}**:`,
+          files:   [attachment],
+        });
+        return interaction.editReply({
+          embeds: [premiumEmbed(client, {
+            title:       '✅  Config Exported',
+            description: 'Your configuration has been sent to your DMs as a JSON file.',
+            color:       '#10B981',
+          })],
+        });
+      } catch {
+        return interaction.editReply({
+          embeds: [premiumEmbed(client, {
+            title:       '⚠️  DM Failed',
+            description: 'Could not send the config file to your DMs.\n\n> Make sure your DMs are open and try again.',
+            color:       '#F59E0B',
+          })],
+        });
       }
     }
-  }
+  },
 };

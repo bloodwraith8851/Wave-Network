@@ -7,9 +7,13 @@ const {
   Partials,
 } = require('discord.js');
 const { QuickDB, JSONDriver } = require('quick.db');
-const config = require(`${process.cwd()}/storage/config.js`);
-const Logger = require(`${process.cwd()}/utils/logger`);
-const fs     = require('fs');
+const config           = require(`${process.cwd()}/storage/config.js`);
+const Logger           = require(`${process.cwd()}/utils/logger`);
+const UIEngine         = require(`${process.cwd()}/core/UIEngine`);
+const CacheLayer       = require(`${process.cwd()}/core/CacheLayer`);
+const ServiceContainer = require(`${process.cwd()}/core/ServiceContainer`);
+const { CommandEngine } = require(`${process.cwd()}/core/CommandEngine`);
+const fs               = require('fs');
 
 
 // ── Shard identity ────────────────────────────────────────────────────────────
@@ -79,9 +83,51 @@ client.commands   = new Collection();
 client.cooldowns  = new Collection();
 client.shardId    = SHARD_ID;
 
-// ── Shared Collections / Maps (Phase 1 Fixes) ────────────────────────────────
-client.Commands   = client.commands; // Internal alias for legacy compatibility
-client.inviteData = new Map();       // Used by verificationService
+// ── Core Engine Layer ─────────────────────────────────────────────────────────
+// CacheLayer: write-batching + read-through TTL cache (replaces raw db.get)
+const cache = new CacheLayer(db);
+cache.start();
+client.cache = cache;
+
+// UIEngine: global embed factory + design system
+client.ui = UIEngine.init(client);
+
+// CommandEngine: unified middleware pipeline dispatcher
+client.commandEngine = new CommandEngine(client);
+
+// ServiceContainer: DI container for all 24 services
+const container = new ServiceContainer();
+container
+  .register('ticket',           require('./services/ticketService'))
+  .register('analytics',        require('./services/analyticsService'))
+  .register('cache',            cache)
+  .register('permission',       require('./services/permissionService'))
+  .register('transcript',       require('./services/transcriptService'))
+  .register('rating',           require('./services/ratingService'))
+  .register('antiAbuse',        require('./services/antiAbuseService'))
+  .register('autoReply',        require('./services/autoReplyService'))
+  .register('autoAssign',       require('./services/autoAssignService'))
+  .register('duplicate',        require('./services/duplicateService'))
+  .register('webhook',          require('./services/webhookService'))
+  .register('kb',               require('./services/kbService'))
+  .register('verification',     require('./services/verificationService'))
+  .register('sla',              require('./services/slaService'))
+  .register('escalation',       require('./services/escalationService'))
+  .register('scheduledMessage', require('./services/scheduledMessageService'))
+  .register('audit',            require('./services/auditService'))
+  .register('blacklist',        require('./services/blacklistService'))
+  .register('reminder',         require('./services/reminderService'))
+  .register('autoClose',        require('./services/autoCloseService'))
+  .register('weeklyReport',     require('./services/weeklyReportService'))
+  .register('canned',           require('./services/cannedService'))
+  .register('moderation',       require('./services/moderationService'));
+
+client.services = container;
+
+// ── Shared Collections / Maps ────────────────────────────────────────────────
+client.Commands   = client.commands; // backward-compat alias
+client.guildCache = new Map();       // legacy cache map (kept for compatibility)
+client.inviteData = new Map();       // used by verificationService
 
 // ── Logger helper (shard-aware, via unified Logger) ──────────────────────────
 client.logger = (msg) => Logger.info(`Shard#${SHARD_ID}`, String(msg));
@@ -108,9 +154,7 @@ Logger.loadedBox('Start scripts', counter);
 
 // ── Login ─────────────────────────────────────────────────────────────────────
 if (client.token) {
-  // Show a masked token prefix so you can confirm the right token is loaded
-  const tokenPreview = client.token.split('.')[0].slice(0, 5) + '...';
-  Logger.boot(`Authenticating with Discord  [token: ${tokenPreview}]  [Shard#${SHARD_ID}]`);
+  Logger.boot(`Authenticating with Discord  [Shard#${SHARD_ID}]`);
 
   client.login(client.token)
     .then(() => {
@@ -134,15 +178,8 @@ client.once('clientReady', () => {
     const shardGuilds = client.guilds.cache.size;
     Logger.ok(`Shard#${SHARD_ID}`, `Logged in as ${client.user.tag}  •  Guilds: ${shardGuilds}  •  Ping: ${client.ws.ping}ms`);
 
-    // ── Core autonomous services ───────────────────────────────────────────
-    require('./services/autoCloseService').start(client);
-    require('./services/reminderService').start(client);
-    require('./services/weeklyReportService').start(client);
-
-    // ── Phase 4b services ──────────────────────────────────────────────────
-    require('./services/slaService').startSLAMonitor(client);
-    require('./services/escalationService').startEscalationMonitor(client);
-    require('./services/scheduledMessageService').init(client);
+  // ── Start all services via ServiceContainer ───────────────────────────────
+    await container.startAll(client);
 
     Logger.ok('Services', `All background services started ✅  [Shard#${SHARD_ID}]`);
 
