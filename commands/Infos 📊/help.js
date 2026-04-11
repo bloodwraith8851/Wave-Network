@@ -6,6 +6,7 @@ const {
   ButtonBuilder,
   ButtonStyle,
   EmbedBuilder,
+  PermissionsBitField,
 } = require('discord.js');
 const { premiumEmbed, errorMessage } = require(`${process.cwd()}/functions/functions`);
 const pkg = require(`${process.cwd()}/package.json`);
@@ -50,6 +51,12 @@ async function getUserLevel(client, interaction) {
     if (adminRole && memberRoles.has(adminRole)) return 3;
     if (modRole   && memberRoles.has(modRole))   return 2;
     if (staffRole && memberRoles.has(staffRole)) return 1;
+
+    // Fallbacks for native Discord Permissions
+    if (member.permissions.has(PermissionsBitField.Flags.Administrator)) return 3;
+    if (member.permissions.has(PermissionsBitField.Flags.ManageGuild)) return 2;
+    if (member.permissions.has(PermissionsBitField.Flags.ManageMessages)) return 1;
+
   } catch { /* fallback */ }
 
   return 0;
