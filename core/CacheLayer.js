@@ -51,17 +51,28 @@ class CacheLayer {
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   start() {
-    this._timer = setInterval(() => this._flush().catch(e =>
-      Logger.error('CacheLayer', 'Flush error', e)), FLUSH_INTERVAL);
-    if (this._timer.unref) this._timer.unref(); // don't keep process alive
-    Logger.ok('CacheLayer', 'Started — write-batching every 500ms ✅');
+    this._isRunning = true;
+    this._flushLoop();
+    Logger.ok('CacheLayer', 'Started — write-batching initialized ✅');
     return this;
   }
 
   async stop() {
-    if (this._timer) { clearInterval(this._timer); this._timer = null; }
+    this._isRunning = false;
+    clearTimeout(this._timer);
     await this._flush();
     Logger.ok('CacheLayer', 'Stopped — final flush complete');
+  }
+
+  async _flushLoop() {
+    if (!this._isRunning) return;
+    try {
+      await this._flush();
+    } catch (e) {
+      Logger.error('CacheLayer', 'Flush error', e);
+    }
+    this._timer = setTimeout(() => this._flushLoop(), FLUSH_INTERVAL);
+    if (this._timer.unref) this._timer.unref();
   }
 
   // ── Core get / set / delete ───────────────────────────────────────────────
@@ -231,9 +242,10 @@ class CacheLayer {
     this._dirty.clear();
 
     try {
-      const ops = [...batch.entries()].map(([key, value]) => this.db.set(key, value));
-      await Promise.all(ops);
-      Logger.debug('CacheLayer', `Flushed ${batch.size} pending write(s)`);
+      for (const [key, value] of batch.entries()) {
+        await this.db.set(key, value);
+      }
+      Logger.debug('CacheLayer', `Flushed ${batch.size} pending write(s) serially`);
     } catch (e) {
       Logger.error('CacheLayer', 'Batch flush failed — re-queuing dirty keys', e);
       for (const [k, v] of batch) this._dirty.set(k, v);

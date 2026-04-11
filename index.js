@@ -5,7 +5,9 @@ const {
   Collection,
   GatewayIntentBits,
   Partials,
+  Options,
 } = require('discord.js');
+const { ClusterClient, getInfo } = require('discord-hybrid-sharding');
 const { QuickDB, JSONDriver } = require('quick.db');
 const config           = require(`${process.cwd()}/storage/config.js`);
 const Logger           = require(`${process.cwd()}/utils/logger`);
@@ -16,12 +18,11 @@ const { CommandEngine } = require(`${process.cwd()}/core/CommandEngine`);
 const fs               = require('fs');
 
 
-// ── Shard identity ────────────────────────────────────────────────────────────
-const SHARD_ID         = process.env.SHARDING_ENABLED === 'true'
-  // When launched by ShardingManager, discord.js injects SHARDS env var
-  ? (process.env.SHARDS ?? 'N/A')
-  : 'standalone';
-const SHARDING_ENABLED = process.env.SHARDING_ENABLED === 'true';
+// ── Cluster Identity ────────────────────────────────────────────────────────────
+let CLUSTER_INFO = null;
+try { Object.keys(process.env).forEach(k => k.startsWith('CLUSTER') && (CLUSTER_INFO = getInfo())); } catch(e) {}
+const SHARD_ID         = CLUSTER_INFO ? CLUSTER_INFO.CLUSTER : 'standalone';
+const SHARDING_ENABLED = !!CLUSTER_INFO;
 
 // ── Database ──────────────────────────────────────────────────────────────────
 // Optimized: Returning to JSONDriver for build compatibility.
@@ -33,6 +34,7 @@ const db = new QuickDB({
 // ── Discord Client ────────────────────────────────────────────────────────────
 const client = new Client({
   restRequestTimeout: 15000,
+  ...(CLUSTER_INFO ? { shards: CLUSTER_INFO.SHARD_LIST, shardCount: CLUSTER_INFO.TOTAL_SHARDS } : {}),
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
@@ -45,6 +47,28 @@ const client = new Client({
     Partials.User,
     Partials.GuildMember,
   ],
+  // RAM Optimization: aggressively cull cached items
+  makeCache: Options.cacheWithLimits({
+    MessageManager: 50,
+    GuildMemberManager: {
+      maxSize: 200,
+      keepOverLimit: member => member.id === member.client.user.id,
+    },
+    ThreadManager: 10,
+    PresenceManager: 0,
+    ReactionManager: 0,
+  }),
+  // Prevent long-term memory leaks
+  sweepers: {
+    messages: {
+      interval: 3600, // Sweep every hour
+      lifetime: 7200, // Remove messages older than 2 hours
+    },
+    threads: {
+      interval: 3600,
+      lifetime: 7200,
+    },
+  },
   // DO NOT set `shards` here — it is handled by the ShardingManager in shard.js
   allowedMentions: {
     parse:       ['roles', 'users', 'everyone'],
@@ -82,6 +106,7 @@ client.categories = fs.readdirSync(`${process.cwd()}/commands`);
 client.commands   = new Collection();
 client.cooldowns  = new Collection();
 client.shardId    = SHARD_ID;
+client.cluster    = new ClusterClient(client);
 
 // ── Core Engine Layer ─────────────────────────────────────────────────────────
 // CacheLayer: write-batching + read-through TTL cache (replaces raw db.get)

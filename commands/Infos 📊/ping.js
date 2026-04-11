@@ -20,7 +20,13 @@ module.exports = {
     });
 
     // ── Step 2: Collect metrics ───────────────────────────────────────────────
-    const apiLatency = sent.createdTimestamp - interaction.createdTimestamp;
+    // We calculate API Latency exactly by wrapping a REST call to prevent WebSocket overlap.
+    const startRest = Date.now();
+    await interaction.editReply({
+      embeds: [new EmbedBuilder().setColor('#2B2D31').setDescription('⏳  Finalizing metrics…')]
+    });
+    const apiLatency = Date.now() - startRest;
+
     const wsLatency  = Math.round(client.ws.ping);
 
     // Memory
@@ -55,14 +61,14 @@ module.exports = {
 
     // Shard info
     const shardId     = client.shardId ?? 0;
-    const totalShards = client.shard?.count ?? 1;
+    const totalShards = client.cluster?.info?.TOTAL_SHARDS ?? 1;
 
     // Cross-shard avg ping (if sharding enabled)
-    let shardPings = `\`#${shardId}\` — \`${wsLatency}ms\``;
+    let shardPings = `\`Cluster #${shardId}\` — \`${wsLatency}ms\``;
     try {
-      if (client.shard) {
-        const pings = await client.shard.broadcastEval(c => c.ws.ping);
-        shardPings  = pings.map((p, i) => `\`#${i}\` — \`${p}ms\``).join('\n');
+      if (client.cluster) {
+        const pings = await client.cluster.broadcastEval(c => c.ws.ping);
+        shardPings  = pings.map((p, i) => `\`Cluster #${i}\` — \`${p}ms\``).join('\n');
       }
     } catch { /* standalone */ }
 
@@ -131,7 +137,7 @@ module.exports = {
         },
       ])
       .setFooter({
-        text:    `Wave Network  •  v${require(`${process.cwd()}/package.json`).version}  •  Shard #${shardId}`,
+        text:    `Wave Network  •  v${require(`${process.cwd()}/package.json`).version}  •  Cluster #${shardId}`,
         iconURL: client.user.displayAvatarURL({ dynamic: true }),
       })
       .setTimestamp();
