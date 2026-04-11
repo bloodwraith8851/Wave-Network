@@ -173,7 +173,7 @@ if (client.token) {
 
 // ── Services: start ONCE per shard after bot is ready ────────────────────────
 // Note: Discord.js v14 renamed 'ready' → 'clientReady'. Using clientReady avoids the DeprecationWarning.
-client.once('clientReady', () => {
+client.once('clientReady', async () => {
   try {
     const shardGuilds = client.guilds.cache.size;
     Logger.ok(`Shard#${SHARD_ID}`, `Logged in as ${client.user.tag}  •  Guilds: ${shardGuilds}  •  Ping: ${client.ws.ping}ms`);
