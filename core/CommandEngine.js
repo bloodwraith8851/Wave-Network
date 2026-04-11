@@ -96,7 +96,7 @@ class CommandEngine {
       cooldownMiddleware,
       ...this._globalMiddleware,
       async (ctx, next) => {
-        await command.run(ctx);
+        await command.run(ctx.client, ctx.interaction, ctx);
         await next();
       },
     ];
