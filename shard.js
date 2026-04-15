@@ -10,7 +10,7 @@ const path   = require('path');
 const { createServer } = require('http');
 
 const TOKEN       = process.env.TOKEN;
-const HEALTH_PORT = parseInt(process.env.PORT || process.env.HEALTH_PORT || '8989');
+const HEALTH_PORT = parseInt(process.env.HEALTH_PORT || process.env.PORT || '8989');
 const BOT_SCRIPT  = path.join(__dirname, 'index.js');
 
 if (!TOKEN) {
