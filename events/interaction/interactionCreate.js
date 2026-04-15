@@ -16,24 +16,26 @@ const { errorMessage }        = require(`${process.cwd()}/functions/functions`);
 
 module.exports = async (client, interaction) => {
   try {
-
     // ── 1. Bot permission fast-fail (guild context only) ─────────────────────
     if (interaction.guild) {
-      const me        = interaction.guild.members.me;
-      const channel   = interaction.channel;
-
       // Guard: members.me may be null in rare reconnect windows
-      if (me && channel?.permissionsFor) {
-        if (!channel.permissionsFor(me).has(PermissionsBitField.Flags.SendMessages)) {
-          return interaction.user.send({
-            content: `⛔  I'm missing **SendMessages** permission in ${channel}. Please fix my permissions.`
-          }).catch(() => null);
-        }
-        if (!channel.permissionsFor(me).has(PermissionsBitField.Flags.EmbedLinks)) {
-          return interaction.reply({
-            content: `⛔  I'm missing **EmbedLinks** permission in ${channel}. Please fix my permissions.`,
-            flags: 64
-          }).catch(() => null);
+      const me = interaction.guild.members.me;
+      const channel = interaction.channel;
+
+      if (me && channel && typeof channel.permissionsFor === 'function') {
+        const botPerms = channel.permissionsFor(me);
+        if (botPerms) {
+          if (!botPerms.has(PermissionsBitField.Flags.SendMessages)) {
+            return interaction.user.send({
+              content: `⛔  I'm missing **SendMessages** permission in <#${channel.id}>. Please fix my permissions.`
+            }).catch(() => null);
+          }
+          if (!botPerms.has(PermissionsBitField.Flags.EmbedLinks)) {
+            return interaction.reply({
+              content: `⛔  I'm missing **EmbedLinks** permission in <#${channel.id}>. Please fix my permissions.`,
+              flags: 64
+            }).catch(() => null);
+          }
         }
       }
     }

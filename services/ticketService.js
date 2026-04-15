@@ -9,6 +9,7 @@ const {
   errorMessage,
   ticketControlRow
 } = require(`${process.cwd()}/functions/functions`);
+const dbHelper = require(`${process.cwd()}/utils/dbHelper`);
 
 const cache = require('./cacheService');
 const autoReplyService      = require('./autoReplyService');
@@ -91,11 +92,11 @@ async function createTicket(client, interaction, category, panelId = null, reaso
   await channel.permissionOverwrites.set(permOverwrites);
 
   // ── 🗄️ Persistence ────────────────────────────────────────────────────────
-  await db.set(`guild_${guild.id}.ticket.name_${user.id}`, channel.name);
-  await db.set(`guild_${guild.id}.ticket.control_${channel.id}`, user.id);
-  await db.set(`guild_${guild.id}.ticket.category_${channel.id}`, category);
-  await db.set(`guild_${guild.id}.ticket.created_at_${channel.id}`, Date.now());
-  await db.set(`guild_${guild.id}.ticket.last_activity_at_${channel.id}`, Date.now());
+  await dbHelper.gset(db, guild.id, `ticket.name_${user.id}`, channel.name);
+  await dbHelper.gset(db, guild.id, `ticket.control_${channel.id}`, user.id);
+  await dbHelper.gset(db, guild.id, `ticket.category_${channel.id}`, category);
+  await dbHelper.gset(db, guild.id, `ticket.created_at_${channel.id}`, Date.now());
+  await dbHelper.gset(db, guild.id, `ticket.last_activity_at_${channel.id}`, Date.now());
 
   // ── 🔗 Service Wiring: AI Suggestions & KB ────────────────────────────────
   const autoReply = await autoReplyService.checkAutoReply(db, guild.id, category).catch(() => null);

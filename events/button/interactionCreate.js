@@ -30,6 +30,7 @@ const cache             = require(`${process.cwd()}/services/cacheService`);
 const ratingService     = require(`${process.cwd()}/services/ratingService`);
 const ticketService     = require(`${process.cwd()}/services/ticketService`);
 const antiAbuseService  = require(`${process.cwd()}/services/antiAbuseService`);
+const dbHelper          = require(`${process.cwd()}/utils/dbHelper`);
 
 module.exports = async (client, interaction) => {
   try {
@@ -72,6 +73,13 @@ module.exports = async (client, interaction) => {
     if (interaction.customId === 'open') {
       if (await permissionService.requirePermission(db, guild, member, 'ticket.reopen', client.config, interaction, errorMessage)) return;
 
+      const maxReopens = await db.get(`guild_${guildId}.config.max_reopens`) || 3;
+      const currentReopens = await db.get(`guild_${guildId}.ticket.reopen_count_${channelId}`) || 0;
+      
+      if (currentReopens >= maxReopens) {
+        return errorMessage(client, interaction, `This ticket has reached the maximum number of reopens (${maxReopens}). Please create a new ticket.`);
+      }
+
       await loadingState(interaction, 'Re-opening ticket...');
       
       const adminRole = await db.get(`guild_${guildId}.permissions.roles.admin`);
@@ -90,9 +98,11 @@ module.exports = async (client, interaction) => {
 
       await channel.permissionOverwrites.set(perms);
       
+      await db.set(`guild_${guildId}.ticket.reopen_count_${channelId}`, currentReopens + 1);
+
       const embed = premiumEmbed(client, {
         title: '🔓  Ticket Re-opened',
-        description: `This ticket has been re-opened by ${user}.`,
+        description: `This ticket has been re-opened by ${user}. (Reopen ${currentReopens + 1}/${maxReopens})`,
         color: client.colors?.success
       });
       
@@ -139,8 +149,7 @@ module.exports = async (client, interaction) => {
       setTimeout(async () => {
         await channel.delete().catch(() => null);
         // DB Cleanup
-        await db.delete(`guild_${guildId}.ticket.control_${channelId}`);
-        await db.delete(`guild_${guildId}.ticket.name_${ticketOwnerId}`);
+        await dbHelper.cleanupTicketKeys(db, guildId, channelId, ticketOwnerId);
       }, 5000);
       return;
     }

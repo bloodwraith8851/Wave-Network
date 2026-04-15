@@ -2,10 +2,11 @@
 # Locks the Node.js version and sets up the build correctly.
 
 [phases.install]
-cmds = ["npm install"]
+cmds = ["npm install", "cd dashboard && npm install", "cd dashboard && npm run build"]
 
 [start]
-cmd = "node shard.js"
+cmd = "npm start"
 
 [variables]
 NODE_ENV = "production"
+BOT_API_URL = "http://localhost:8989"

@@ -64,7 +64,7 @@ function requireAuth(req, res, next) {
 }
 
 module.exports = function startApiServer(client) {
-  const port = client.config?.source?.port || parseInt(process.env.PORT || '3000');
+  const port = client.config?.source?.port || parseInt(process.env.HEALTH_PORT || process.env.PORT || '3000');
   const app  = express();
 
   // ── Middleware ────────────────────────────────────────────────────────────

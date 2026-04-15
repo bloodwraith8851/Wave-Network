@@ -173,7 +173,8 @@ module.exports = async (client, interaction) => {
     }
 
   } catch (e) {
-    console.error('[Modal Handler Error]', e);
+    const Logger = require(`${process.cwd()}/utils/logger`);
+    Logger.error('ModalHandler', e.stack || String(e));
     return errorMessage(client, interaction, 'An unexpected error occurred in the modal handler.');
   }
 };
