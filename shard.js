@@ -65,18 +65,4 @@ manager.spawn({ timeout: -1 })
   .then(() => Logger.ok('ClusterManager', `All clusters have been launched using Advanced Hybrid Protocols.`))
   .catch(e => Logger.error('ClusterManager', `Fatal: Failed to spawn clusters: ${e.message}`));
 
-// Health check HTTP server
-const healthServer = createServer((req, res) => {
-  if (req.url === '/health' || req.url === '/') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      status: 'cluster_optimized_ok',
-      architecture: 'hybrid_threaded',
-      clusters: manager.totalClusters,
-      shards: manager.totalShards,
-    }));
-  } else {
-    res.writeHead(404).end('Not Found');
-  }
-});
-healthServer.listen(HEALTH_PORT, '0.0.0.0', () => Logger.ok('ClusterManager', `Liveness Web Server active on port ${HEALTH_PORT}`));
+// HTTP Health Server removed to prevent port conflicts with Next.js and API Server
